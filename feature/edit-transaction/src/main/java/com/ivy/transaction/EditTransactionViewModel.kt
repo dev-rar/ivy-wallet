@@ -23,6 +23,9 @@ import com.ivy.data.model.CategoryId
 import com.ivy.data.model.Tag
 import com.ivy.data.model.TagId
 import com.ivy.data.model.TransactionId
+import com.ivy.data.model.TransactionSplit
+import com.ivy.domain.usecase.transaction.GetTransactionSplitsUseCase
+import com.ivy.domain.usecase.transaction.SaveTransactionSplitsUseCase
 import com.ivy.data.model.primitive.AssociationId
 import com.ivy.data.model.primitive.NotBlankTrimmedString
 import com.ivy.data.repository.CategoryRepository
@@ -107,6 +110,8 @@ class EditTransactionViewModel @Inject constructor(
     private val timeConverter: TimeConverter,
     private val timeProvider: TimeProvider,
     private val dateTimePicker: DateTimePicker,
+    private val getTransactionSplitsUseCase: GetTransactionSplitsUseCase,
+    private val saveTransactionSplitsUseCase: SaveTransactionSplitsUseCase,
 ) : ComposeViewModel<EditTransactionViewState, EditTransactionViewEvent>() {
 
     private var transactionType by mutableStateOf(TransactionType.EXPENSE)
@@ -120,6 +125,7 @@ class EditTransactionViewModel @Inject constructor(
     private var categories by mutableStateOf<ImmutableList<Category>>(persistentListOf())
     private var tags by mutableStateOf<ImmutableList<Tag>>(persistentListOf())
     private var transactionAssociatedTags by mutableStateOf<ImmutableList<TagId>>(persistentListOf())
+    private var splits by mutableStateOf<ImmutableList<TransactionSplit>>(persistentListOf())
     private var account by mutableStateOf<Account?>(null)
     private var toAccount by mutableStateOf<Account?>(null)
     private var category by mutableStateOf<Category?>(null)
@@ -182,6 +188,11 @@ class EditTransactionViewModel @Inject constructor(
             transactionAssociatedTags =
                 tagRepository.findByAssociatedId(AssociationId(loadedTransaction().id)).map(Tag::id)
                     .toImmutableList()
+            splits = if (screen.initialTransactionId != null) {
+                getTransactionSplitsUseCase(TransactionId(loadedTransaction().id)).toImmutableList()
+            } else {
+                persistentListOf()
+            }
             display(loadedTransaction!!)
         }
     }
@@ -207,7 +218,8 @@ class EditTransactionViewModel @Inject constructor(
             backgroundProcessingStarted = getBackgroundProcessingStarted(),
             customExchangeRateState = getCustomExchangeRateState(),
             tags = getTags(),
-            transactionAssociatedTags = getTransactionAssociatedTags()
+            transactionAssociatedTags = getTransactionAssociatedTags(),
+            splits = splits
         )
     }
 
@@ -320,6 +332,10 @@ class EditTransactionViewModel @Inject constructor(
             is EditTransactionViewEvent.EditCategory -> editCategory(event.updatedCategory)
             is EditTransactionViewEvent.OnAccountChanged -> onAccountChanged(event.newAccount)
             is EditTransactionViewEvent.OnAmountChanged -> onAmountChanged(event.newAmount)
+            is EditTransactionViewEvent.OnSplitsChanged -> {
+                splits = event.splits.toImmutableList()
+                hasChanges = true
+            }
             is EditTransactionViewEvent.OnCategoryChanged -> onCategoryChanged(event.newCategory)
             is EditTransactionViewEvent.OnDescriptionChanged ->
                 onDescriptionChanged(event.newDescription)
@@ -750,6 +766,12 @@ class EditTransactionViewModel @Inject constructor(
                 loadedTransaction().toDomain(transactionMapper)?.let {
                     transactionRepo.save(it)
                 }
+
+                saveTransactionSplitsUseCase(
+                    transactionId = TransactionId(loadedTransaction().id),
+                    parentAmount = amount.toDouble(),
+                    splits = splits
+                )
 
                 refreshWidget(WalletBalanceWidgetReceiver::class.java)
             }

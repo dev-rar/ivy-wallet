@@ -1,5 +1,6 @@
 package com.ivy.data.di
 
+import android.content.Context
 import com.ivy.data.db.IvyRoomDatabase
 import com.ivy.data.db.dao.read.AccountDao
 import com.ivy.data.db.dao.read.BudgetDao
@@ -31,11 +32,23 @@ import com.ivy.data.db.dao.write.WriteTransactionSplitDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-class RoomDbModule {
+object RoomDbModule {
+
+    @Provides
+    @Singleton
+    fun provideIvyRoomDatabase(
+        @ApplicationContext appContext: Context,
+    ): IvyRoomDatabase {
+        return IvyRoomDatabase.create(
+            applicationContext = appContext,
+        )
+    }
 
     @Provides
     fun provideAccountDao(db: IvyRoomDatabase): AccountDao {

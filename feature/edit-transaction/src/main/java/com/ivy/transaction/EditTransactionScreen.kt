@@ -35,6 +35,8 @@ import com.ivy.base.model.TransactionType
 import com.ivy.data.model.Category
 import com.ivy.data.model.Tag
 import com.ivy.data.model.TagId
+import com.ivy.data.model.TransactionSplit
+import kotlinx.collections.immutable.persistentListOf
 import com.ivy.design.api.LocalTimeConverter
 import com.ivy.design.l0_system.Orange
 import com.ivy.design.l0_system.UI
@@ -122,7 +124,11 @@ fun BoxWithConstraintsScope.EditTransactionScreen(screen: EditTransactionScreen)
         accounts = uiState.accounts,
         tags = uiState.tags,
         transactionAssociatedTags = uiState.transactionAssociatedTags,
+        splits = uiState.splits,
         hasChanges = uiState.hasChanges,
+        onSplitsChange = {
+            viewModel.onEvent(EditTransactionViewEvent.OnSplitsChanged(it))
+        },
         onSetDate = {
             viewModel.onEvent(EditTransactionViewEvent.OnChangeDate)
         },
@@ -209,6 +215,8 @@ private fun BoxWithConstraintsScope.UI(
     accounts: ImmutableList<Account>,
     tags: ImmutableList<Tag>,
     transactionAssociatedTags: ImmutableList<TagId>,
+    splits: ImmutableList<TransactionSplit> = persistentListOf(),
+    onSplitsChange: (List<TransactionSplit>) -> Unit = {},
     onTitleChange: (String?) -> Unit,
     onDescriptionChange: (String?) -> Unit,
     onAmountChange: (Double) -> Unit,
@@ -237,6 +245,7 @@ private fun BoxWithConstraintsScope.UI(
     ) {
     var chooseCategoryModalVisible by remember { mutableStateOf(false) }
     var tagModelVisible by remember { mutableStateOf(false) }
+    var splitModalVisible by remember { mutableStateOf(false) }
     var categoryModalData: CategoryModalData? by remember { mutableStateOf(null) }
     var accountModalData: AccountModalData? by remember { mutableStateOf(null) }
     var descriptionModalVisible by remember { mutableStateOf(false) }
@@ -351,6 +360,19 @@ private fun BoxWithConstraintsScope.UI(
         AddTagButton(transactionAssociatedTags = transactionAssociatedTags, onClick = {
             tagModelVisible = true
         })
+
+        if (transactionType != TransactionType.TRANSFER) {
+            Spacer(Modifier.height(16.dp))
+
+            SplitTransactionButton(
+                splits = splits,
+                categories = categories,
+                currency = account?.currency ?: baseCurrency,
+                onClick = {
+                    splitModalVisible = true
+                }
+            )
+        }
 
         Spacer(Modifier.height(32.dp))
 
@@ -577,6 +599,18 @@ private fun BoxWithConstraintsScope.UI(
     ) {
         onSetTransactionType(it)
     }
+
+    SplitTransactionModal(
+        visible = splitModalVisible,
+        parentAmount = amount,
+        currency = account?.currency ?: baseCurrency,
+        initialSplits = splits,
+        categories = categories,
+        onApplySplits = onSplitsChange,
+        dismiss = {
+            splitModalVisible = false
+        }
+    )
 
     DeleteModal(
         visible = accountChangeModal,
