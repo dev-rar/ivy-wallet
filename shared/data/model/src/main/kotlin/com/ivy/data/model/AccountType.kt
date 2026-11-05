@@ -16,3 +16,4 @@ enum class AccountType {
     val isLiability: Boolean
         get() = this == LIABILITY
 }
+

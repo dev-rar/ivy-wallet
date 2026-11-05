@@ -16,3 +16,4 @@ enum class BudgetGroupType {
     val isIncome: Boolean
         get() = this == INCOME
 }
+

@@ -14,6 +14,7 @@ import com.ivy.data.db.dao.read.BudgetDao
 import com.ivy.data.db.dao.read.CategoryDao
 import com.ivy.data.db.dao.read.LoanDao
 import com.ivy.data.db.dao.read.LoanRecordDao
+import com.ivy.data.db.dao.read.MonthlyBudgetDao
 import com.ivy.data.db.dao.read.PlannedPaymentRuleDao
 import com.ivy.data.db.dao.read.SettingsDao
 import com.ivy.data.db.dao.read.TagAssociationDao
@@ -23,6 +24,7 @@ import com.ivy.data.db.dao.write.WriteBudgetDao
 import com.ivy.data.db.dao.write.WriteCategoryDao
 import com.ivy.data.db.dao.write.WriteLoanDao
 import com.ivy.data.db.dao.write.WriteLoanRecordDao
+import com.ivy.data.db.dao.write.WriteMonthlyBudgetDao
 import com.ivy.data.db.dao.write.WritePlannedPaymentRuleDao
 import com.ivy.data.db.dao.write.WriteSettingsDao
 import com.ivy.data.db.dao.write.WriteTagAssociationDao
@@ -63,6 +65,8 @@ class BackupDataUseCase @Inject constructor(
     private val loanWriter: WriteLoanDao,
     private val loanRecordWriter: WriteLoanRecordDao,
     private val plannedPaymentRuleWriter: WritePlannedPaymentRuleDao,
+    private val monthlyBudgetDao: MonthlyBudgetDao,
+    private val monthlyBudgetWriter: WriteMonthlyBudgetDao,
     @ApplicationContext
     private val context: Context,
     private val json: Json,
@@ -108,6 +112,9 @@ class BackupDataUseCase @Inject constructor(
             val sharedPrefs = async { getSharedPrefsData() }
             val tags = async { tagsReader.findAll() }
             val tagAssociations = async { tagAssociationReader.findAll() }
+            val monthlyBudgetPlans = async { monthlyBudgetDao.findAllPlans() }
+            val budgetGroups = async { monthlyBudgetDao.findAllGroups() }
+            val budgetItems = async { monthlyBudgetDao.findAllItems() }
 
             val completeData = IvyWalletCompleteData(
                 accounts = accounts.await(),
@@ -120,7 +127,10 @@ class BackupDataUseCase @Inject constructor(
                 transactions = transactions.await(),
                 sharedPrefs = sharedPrefs.await(),
                 tags = tags.await(),
-                tagAssociations = tagAssociations.await()
+                tagAssociations = tagAssociations.await(),
+                monthlyBudgetPlans = monthlyBudgetPlans.await(),
+                budgetGroups = budgetGroups.await(),
+                budgetItems = budgetItems.await()
             )
 
             json.encodeToString(completeData)
@@ -277,6 +287,9 @@ class BackupDataUseCase @Inject constructor(
 
             val tags = async { tagsWriter.save(completeData.tags) }
             val tagAssociations = async { tagAssociationWriter.save(completeData.tagAssociations) }
+            val monthlyPlans = async { monthlyBudgetWriter.savePlans(completeData.monthlyBudgetPlans) }
+            val monthlyGroups = async { monthlyBudgetWriter.saveGroups(completeData.budgetGroups) }
+            val monthlyItems = async { monthlyBudgetWriter.saveItems(completeData.budgetItems) }
 
             val plannedPayments =
                 async { plannedPaymentRuleWriter.saveMany(completeData.plannedPaymentRules) }
@@ -312,6 +325,9 @@ class BackupDataUseCase @Inject constructor(
             settings.await()
             tags.await()
             tagAssociations.await()
+            monthlyPlans.await()
+            monthlyGroups.await()
+            monthlyItems.await()
 
             onProgress(0.9)
         }

@@ -6,3 +6,4 @@ enum class BudgetItemType {
     DEBT_PAYOFF,
     INVESTMENT_ALLOCATION
 }
+

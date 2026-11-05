@@ -3,9 +3,12 @@ package com.ivy.data.backup
 import androidx.annotation.Keep
 import com.ivy.data.db.entity.AccountEntity
 import com.ivy.data.db.entity.BudgetEntity
+import com.ivy.data.db.entity.BudgetGroupEntity
+import com.ivy.data.db.entity.BudgetItemEntity
 import com.ivy.data.db.entity.CategoryEntity
 import com.ivy.data.db.entity.LoanEntity
 import com.ivy.data.db.entity.LoanRecordEntity
+import com.ivy.data.db.entity.MonthlyBudgetPlanEntity
 import com.ivy.data.db.entity.PlannedPaymentRuleEntity
 import com.ivy.data.db.entity.SettingsEntity
 import com.ivy.data.db.entity.TagAssociationEntity
@@ -39,5 +42,11 @@ data class IvyWalletCompleteData(
     @SerialName("tags")
     val tags: List<TagEntity> = emptyList(),
     @SerialName("tagAssociations")
-    val tagAssociations: List<TagAssociationEntity> = emptyList()
+    val tagAssociations: List<TagAssociationEntity> = emptyList(),
+    @SerialName("monthlyBudgetPlans")
+    val monthlyBudgetPlans: List<MonthlyBudgetPlanEntity> = emptyList(),
+    @SerialName("budgetGroups")
+    val budgetGroups: List<BudgetGroupEntity> = emptyList(),
+    @SerialName("budgetItems")
+    val budgetItems: List<BudgetItemEntity> = emptyList()
 )

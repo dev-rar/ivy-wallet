@@ -8,6 +8,7 @@ import com.ivy.data.db.dao.fake.FakeBudgetDao
 import com.ivy.data.db.dao.fake.FakeCategoryDao
 import com.ivy.data.db.dao.fake.FakeLoanDao
 import com.ivy.data.db.dao.fake.FakeLoanRecordDao
+import com.ivy.data.db.dao.fake.FakeMonthlyBudgetDao
 import com.ivy.data.db.dao.fake.FakePlannedPaymentDao
 import com.ivy.data.db.dao.fake.FakeSettingsDao
 import com.ivy.data.db.dao.fake.FakeTagAssociationDao
@@ -35,7 +36,8 @@ class BackupDataUseCaseTest {
         loanDao: FakeLoanDao = FakeLoanDao(),
         loanRecordDao: FakeLoanRecordDao = FakeLoanRecordDao(),
         tagDao: FakeTagDao = FakeTagDao(),
-        tagAssociationDao: FakeTagAssociationDao = FakeTagAssociationDao()
+        tagAssociationDao: FakeTagAssociationDao = FakeTagAssociationDao(),
+        monthlyBudgetDao: FakeMonthlyBudgetDao = FakeMonthlyBudgetDao()
     ): BackupDataUseCase {
         val accountMapper = AccountMapper(
             CurrencyRepository(
@@ -68,6 +70,8 @@ class BackupDataUseCaseTest {
             loanWriter = loanDao,
             loanRecordWriter = loanRecordDao,
             plannedPaymentRuleWriter = plannedPaymentDao,
+            monthlyBudgetDao = monthlyBudgetDao,
+            monthlyBudgetWriter = monthlyBudgetDao,
 
             context = mockk(relaxed = true),
             sharedPrefs = mockk(relaxed = true),
