@@ -386,3 +386,25 @@ This document specifies the architecture, data models, financial rules, phased r
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :app:assembleDebug` -> BUILD SUCCESSFUL (`app-debug.apk` built: 105.1 MB).
+
+## 11. Verification Results (Phase 3 — Transaction Assignments & Splits)
+
+- **Room Schema & Migration 131 to 132**:
+  - Entity `TransactionSplitEntity` (`id`, `transactionId`, `budgetItemId`, `categoryId`, `amount`, `note`, `orderNum`).
+  - Read DAO `TransactionSplitDao`, write DAO `WriteTransactionSplitDao`, and in-memory test double `FakeTransactionSplitDao`.
+  - Migration `Migration131to132_TransactionSplits` and bumped database version to 132. Exported schema generated at `shared/data/core/schemas/com.ivy.data.db.IvyRoomDatabase/132.json`.
+  - Updated `IvyWalletCompleteData` and `BackupDataUseCase` for automated offline backup/restore serialization.
+- **Repository & Domain Use Cases**:
+  - `TransactionSplitRepository`: Supports finding splits by single/batch transaction IDs, observing flows, saving atomic splits, and cascading cleanup.
+  - Domain use cases `GetTransactionSplitsUseCase` and `SaveTransactionSplitsUseCase` with mathematical validation ($\sum \text{split.amount} == \text{parentAmount}$).
+  - Updated `GetMonthlyPlanSummaryUseCase` to aggregate splits attributed either directly to budget items or across split categories.
+  - Unit tests in `SaveTransactionSplitsUseCaseTest` passing: equal-amount validation, mismatch rejection, negative amount rejection, and split clearing.
+- **UI Architecture in Edit Transaction**:
+  - `SplitTransactionButton`: Displays split status ("Split Transaction" or "Split into N items") directly below Category selection.
+  - `SplitTransactionModal`: Allows splitting transaction across multiple categories with custom amounts, optional notes, real-time balance calculations, remaining balance indicators, dynamic line additions/deletions, and clear action.
+  - Integration with `EditTransactionViewModel` and `EditTransactionScreen` on event, state, and database persistence.
+- **Build Verification**:
+  - `./gradlew.bat :shared:data:core:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:edit-transaction:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :app:assembleDebug` -> BUILD SUCCESSFUL (`app-debug.apk` built: 106.3 MB).
