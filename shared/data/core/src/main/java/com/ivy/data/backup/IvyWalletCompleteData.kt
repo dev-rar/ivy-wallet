@@ -6,6 +6,7 @@ import com.ivy.data.db.entity.BudgetEntity
 import com.ivy.data.db.entity.BudgetGroupEntity
 import com.ivy.data.db.entity.BudgetItemEntity
 import com.ivy.data.db.entity.CategoryEntity
+import com.ivy.data.db.entity.InvestmentValuationEntity
 import com.ivy.data.db.entity.LoanEntity
 import com.ivy.data.db.entity.LoanRecordEntity
 import com.ivy.data.db.entity.MonthlyBudgetPlanEntity
@@ -51,5 +52,7 @@ data class IvyWalletCompleteData(
     @SerialName("budgetItems")
     val budgetItems: List<BudgetItemEntity> = emptyList(),
     @SerialName("transactionSplits")
-    val transactionSplits: List<TransactionSplitEntity> = emptyList()
+    val transactionSplits: List<TransactionSplitEntity> = emptyList(),
+    @SerialName("investmentValuations")
+    val investmentValuations: List<InvestmentValuationEntity> = emptyList()
 )

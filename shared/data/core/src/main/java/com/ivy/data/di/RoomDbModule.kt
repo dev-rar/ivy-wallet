@@ -6,6 +6,7 @@ import com.ivy.data.db.dao.read.AccountDao
 import com.ivy.data.db.dao.read.BudgetDao
 import com.ivy.data.db.dao.read.CategoryDao
 import com.ivy.data.db.dao.read.ExchangeRatesDao
+import com.ivy.data.db.dao.read.InvestmentValuationDao
 import com.ivy.data.db.dao.read.LoanDao
 import com.ivy.data.db.dao.read.LoanRecordDao
 import com.ivy.data.db.dao.read.MonthlyBudgetDao
@@ -20,6 +21,7 @@ import com.ivy.data.db.dao.write.WriteAccountDao
 import com.ivy.data.db.dao.write.WriteBudgetDao
 import com.ivy.data.db.dao.write.WriteCategoryDao
 import com.ivy.data.db.dao.write.WriteExchangeRatesDao
+import com.ivy.data.db.dao.write.WriteInvestmentValuationDao
 import com.ivy.data.db.dao.write.WriteLoanDao
 import com.ivy.data.db.dao.write.WriteLoanRecordDao
 import com.ivy.data.db.dao.write.WriteMonthlyBudgetDao
@@ -185,5 +187,15 @@ object RoomDbModule {
     @Provides
     fun provideWriteTransactionSplitDao(db: IvyRoomDatabase): WriteTransactionSplitDao {
         return db.writeTransactionSplitDao
+    }
+
+    @Provides
+    fun provideInvestmentValuationDao(db: IvyRoomDatabase): InvestmentValuationDao {
+        return db.investmentValuationDao
+    }
+
+    @Provides
+    fun provideWriteInvestmentValuationDao(db: IvyRoomDatabase): WriteInvestmentValuationDao {
+        return db.writeInvestmentValuationDao
     }
 }

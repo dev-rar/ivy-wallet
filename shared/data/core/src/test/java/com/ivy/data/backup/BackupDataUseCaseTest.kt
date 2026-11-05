@@ -38,7 +38,8 @@ class BackupDataUseCaseTest {
         tagDao: FakeTagDao = FakeTagDao(),
         tagAssociationDao: FakeTagAssociationDao = FakeTagAssociationDao(),
         monthlyBudgetDao: FakeMonthlyBudgetDao = FakeMonthlyBudgetDao(),
-        transactionSplitDao: com.ivy.data.db.dao.fake.FakeTransactionSplitDao = com.ivy.data.db.dao.fake.FakeTransactionSplitDao()
+        transactionSplitDao: com.ivy.data.db.dao.fake.FakeTransactionSplitDao = com.ivy.data.db.dao.fake.FakeTransactionSplitDao(),
+        investmentValuationDao: com.ivy.data.db.dao.fake.FakeInvestmentValuationDao = com.ivy.data.db.dao.fake.FakeInvestmentValuationDao()
     ): BackupDataUseCase {
         val accountMapper = AccountMapper(
             CurrencyRepository(
@@ -75,6 +76,8 @@ class BackupDataUseCaseTest {
             monthlyBudgetWriter = monthlyBudgetDao,
             transactionSplitDao = transactionSplitDao,
             transactionSplitWriter = transactionSplitDao,
+            investmentValuationDao = investmentValuationDao,
+            investmentValuationWriter = investmentValuationDao,
 
             context = mockk(relaxed = true),
             sharedPrefs = mockk(relaxed = true),
