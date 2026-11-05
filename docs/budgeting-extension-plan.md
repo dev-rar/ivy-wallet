@@ -408,3 +408,27 @@ This document specifies the architecture, data models, financial rules, phased r
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:edit-transaction:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :app:assembleDebug` -> BUILD SUCCESSFUL (`app-debug.apk` built: 106.3 MB).
+
+## 12. Verification Results (Phase 4 — Net Worth Tracking & Investment Accounts)
+
+- **Room Schema & Migration 132 to 133**:
+  - Added `accountType` (`TEXT NOT NULL DEFAULT 'BANK'`) column to `AccountEntity`.
+  - Entity `InvestmentValuationEntity` (`id`, `accountId`, `valuationDate`, `amount`, `notes`).
+  - Read DAO `InvestmentValuationDao`, write DAO `WriteInvestmentValuationDao`, and in-memory test double `FakeInvestmentValuationDao`.
+  - Migration `Migration132to133_InvestmentsAndNetWorth` and bumped database version to 133. Exported schema generated at `shared/data/core/schemas/com.ivy.data.db.IvyRoomDatabase/133.json`.
+  - Updated `IvyWalletCompleteData`, `BackupDataUseCase`, and `BackupDataUseCaseTest` for full offline backup/restore serialization.
+- **Repository & Domain Use Cases**:
+  - `InvestmentRepository`: Valuation recording, historical query, and reactive observation.
+  - Domain models `AccountType` (`REGULAR`, `CASH`, `BANK`, `INVESTMENT`, `LIABILITY`), `InvestmentValuation`, and `NetWorthSummary`.
+  - Updated `AccountMapper` for bidirectional domain-entity conversion of `AccountType`.
+  - `CalculateNetWorthUseCase`: Comprehensive balance calculation combining liquid cash accounts, latest investment portfolio valuations, liability accounts, and active loan obligations.
+  - Unit tests in `CalculateNetWorthUseCaseTest` passing: net worth aggregation, multi-account type classification, and liability netting.
+- **UI Architecture in Accounts**:
+  - `NetWorthCard`: Prominent dashboard card displaying total Net Worth, Liquid Assets, Investments, and Total Liabilities with a quick "Update Value" action.
+  - `UpdateValuationModal`: Clean modal bottom sheet with horizontal account chips, decimal amount input for updated NAV / market portfolio valuation, and optional notes.
+  - Integration with `AccountsViewModel` and `AccountsTab` on event, state, and room persistence.
+- **Build Verification**:
+  - `./gradlew.bat :shared:data:core:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:accounts:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :app:assembleDebug` -> BUILD SUCCESSFUL.
