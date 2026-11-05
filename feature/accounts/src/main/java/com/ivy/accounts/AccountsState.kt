@@ -1,6 +1,7 @@
 package com.ivy.accounts
 
 import androidx.compose.runtime.Immutable
+import com.ivy.domain.model.networth.NetWorthSummary
 import com.ivy.legacy.data.model.AccountData
 import kotlinx.collections.immutable.ImmutableList
 
@@ -15,4 +16,5 @@ data class AccountsState(
     val reorderVisible: Boolean,
     val compactAccountsModeEnabled: Boolean,
     val hideTotalBalance: Boolean,
+    val netWorthSummary: NetWorthSummary? = null,
 )

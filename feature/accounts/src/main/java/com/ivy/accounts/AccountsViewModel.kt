@@ -14,7 +14,11 @@ import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
 import com.ivy.data.DataObserver
 import com.ivy.data.DataWriteEvent
+import com.ivy.data.model.AccountId
 import com.ivy.data.repository.AccountRepository
+import com.ivy.data.repository.InvestmentRepository
+import com.ivy.domain.model.networth.NetWorthSummary
+import com.ivy.domain.usecase.account.CalculateNetWorthUseCase
 import com.ivy.domain.features.Features
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.data.model.AccountData
@@ -51,6 +55,8 @@ class AccountsViewModel @Inject constructor(
     private val features: Features,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
+    private val calculateNetWorthUseCase: CalculateNetWorthUseCase,
+    private val investmentRepository: InvestmentRepository,
 ) : ComposeViewModel<AccountsState, AccountsEvent>() {
     private var baseCurrency by mutableStateOf("")
     private var accountsData by mutableStateOf(listOf<AccountData>())
@@ -59,6 +65,7 @@ class AccountsViewModel @Inject constructor(
     private var totalBalanceWithoutExcluded by mutableStateOf("")
     private var totalBalanceWithoutExcludedText by mutableStateOf("")
     private var reorderVisible by mutableStateOf(false)
+    private var netWorthSummary by mutableStateOf<NetWorthSummary?>(null)
 
     init {
         viewModelScope.launch {
@@ -91,7 +98,8 @@ class AccountsViewModel @Inject constructor(
             totalBalanceWithoutExcludedText = getTotalBalanceWithoutExcludedText(),
             reorderVisible = getReorderVisible(),
             compactAccountsModeEnabled = getCompactAccountsMode(),
-            hideTotalBalance = getHideTotalBalance()
+            hideTotalBalance = getHideTotalBalance(),
+            netWorthSummary = netWorthSummary
         )
     }
 
@@ -145,6 +153,14 @@ class AccountsViewModel @Inject constructor(
             when (event) {
                 is AccountsEvent.OnReorder -> reorder(event.reorderedList)
                 is AccountsEvent.OnReorderModalVisible -> reorderModalVisible(event.reorderVisible)
+                is AccountsEvent.OnRecordValuation -> {
+                    investmentRepository.recordValuation(
+                        accountId = AccountId(event.accountId),
+                        amount = event.amount,
+                        notes = event.notes
+                    )
+                    startInternally()
+                }
             }
         }
     }
@@ -172,6 +188,7 @@ class AccountsViewModel @Inject constructor(
         val range = period.toRange(ivyContext.startDayOfMonth, timeConverter, timeProvider)
 
         val baseCurrencyCode = baseCurrencyAct(Unit)
+        netWorthSummary = runCatching { calculateNetWorthUseCase() }.getOrNull()
         val accounts = accountRepository.findAll().toImmutableList()
 
         val includeTransfersInCalc =

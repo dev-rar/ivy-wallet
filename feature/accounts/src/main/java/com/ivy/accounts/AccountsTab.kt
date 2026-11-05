@@ -19,6 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,6 +85,7 @@ private fun BoxWithConstraintsScope.UI(
 ) {
     val nav = navigation()
     val ivyContext = com.ivy.legacy.ivyWalletCtx()
+    var valuationModalVisible by remember { mutableStateOf(false) }
     var listState = rememberLazyListState()
     if (!state.accountsData.isEmpty()) {
         listState = rememberScrollPositionListState(
@@ -148,6 +153,15 @@ private fun BoxWithConstraintsScope.UI(
                 }
                 Spacer(Modifier.height(16.dp))
             }
+
+            state.netWorthSummary?.let { netWorth ->
+                Spacer(Modifier.height(8.dp))
+                NetWorthCard(
+                    summary = netWorth,
+                    onValuateClick = { valuationModalVisible = true }
+                )
+                Spacer(Modifier.height(16.dp))
+            }
         }
         items(state.accountsData) {
             Spacer(Modifier.height(16.dp))
@@ -200,6 +214,16 @@ private fun BoxWithConstraintsScope.UI(
             )
         )
     }
+
+    UpdateValuationModal(
+        visible = valuationModalVisible,
+        accounts = state.accountsData,
+        currency = state.baseCurrency,
+        onSaveValuation = { accountId, amount, notes ->
+            onEvent(AccountsEvent.OnRecordValuation(accountId, amount, notes))
+        },
+        dismiss = { valuationModalVisible = false }
+    )
 }
 
 @Composable
