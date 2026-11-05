@@ -14,6 +14,7 @@ import com.ivy.data.db.entity.SettingsEntity
 import com.ivy.data.db.entity.TagAssociationEntity
 import com.ivy.data.db.entity.TagEntity
 import com.ivy.data.db.entity.TransactionEntity
+import com.ivy.data.db.entity.TransactionSplitEntity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -48,5 +49,7 @@ data class IvyWalletCompleteData(
     @SerialName("budgetGroups")
     val budgetGroups: List<BudgetGroupEntity> = emptyList(),
     @SerialName("budgetItems")
-    val budgetItems: List<BudgetItemEntity> = emptyList()
+    val budgetItems: List<BudgetItemEntity> = emptyList(),
+    @SerialName("transactionSplits")
+    val transactionSplits: List<TransactionSplitEntity> = emptyList()
 )

@@ -67,6 +67,8 @@ class BackupDataUseCase @Inject constructor(
     private val plannedPaymentRuleWriter: WritePlannedPaymentRuleDao,
     private val monthlyBudgetDao: MonthlyBudgetDao,
     private val monthlyBudgetWriter: WriteMonthlyBudgetDao,
+    private val transactionSplitDao: com.ivy.data.db.dao.read.TransactionSplitDao,
+    private val transactionSplitWriter: com.ivy.data.db.dao.write.WriteTransactionSplitDao,
     @ApplicationContext
     private val context: Context,
     private val json: Json,
@@ -115,6 +117,7 @@ class BackupDataUseCase @Inject constructor(
             val monthlyBudgetPlans = async { monthlyBudgetDao.findAllPlans() }
             val budgetGroups = async { monthlyBudgetDao.findAllGroups() }
             val budgetItems = async { monthlyBudgetDao.findAllItems() }
+            val transactionSplits = async { transactionSplitDao.findAll() }
 
             val completeData = IvyWalletCompleteData(
                 accounts = accounts.await(),
@@ -130,7 +133,8 @@ class BackupDataUseCase @Inject constructor(
                 tagAssociations = tagAssociations.await(),
                 monthlyBudgetPlans = monthlyBudgetPlans.await(),
                 budgetGroups = budgetGroups.await(),
-                budgetItems = budgetItems.await()
+                budgetItems = budgetItems.await(),
+                transactionSplits = transactionSplits.await()
             )
 
             json.encodeToString(completeData)
@@ -290,6 +294,7 @@ class BackupDataUseCase @Inject constructor(
             val monthlyPlans = async { monthlyBudgetWriter.savePlans(completeData.monthlyBudgetPlans) }
             val monthlyGroups = async { monthlyBudgetWriter.saveGroups(completeData.budgetGroups) }
             val monthlyItems = async { monthlyBudgetWriter.saveItems(completeData.budgetItems) }
+            val transactionSplits = async { transactionSplitWriter.saveAll(completeData.transactionSplits) }
 
             val plannedPayments =
                 async { plannedPaymentRuleWriter.saveMany(completeData.plannedPaymentRules) }

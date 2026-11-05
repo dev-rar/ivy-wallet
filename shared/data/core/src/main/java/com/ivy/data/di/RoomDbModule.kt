@@ -1,6 +1,5 @@
 package com.ivy.data.di
 
-import android.content.Context
 import com.ivy.data.db.IvyRoomDatabase
 import com.ivy.data.db.dao.read.AccountDao
 import com.ivy.data.db.dao.read.BudgetDao
@@ -11,9 +10,10 @@ import com.ivy.data.db.dao.read.LoanRecordDao
 import com.ivy.data.db.dao.read.MonthlyBudgetDao
 import com.ivy.data.db.dao.read.PlannedPaymentRuleDao
 import com.ivy.data.db.dao.read.SettingsDao
-import com.ivy.data.db.dao.read.TagAssociationDao
 import com.ivy.data.db.dao.read.TagDao
+import com.ivy.data.db.dao.read.TagAssociationDao
 import com.ivy.data.db.dao.read.TransactionDao
+import com.ivy.data.db.dao.read.TransactionSplitDao
 import com.ivy.data.db.dao.read.UserDao
 import com.ivy.data.db.dao.write.WriteAccountDao
 import com.ivy.data.db.dao.write.WriteBudgetDao
@@ -24,34 +24,18 @@ import com.ivy.data.db.dao.write.WriteLoanRecordDao
 import com.ivy.data.db.dao.write.WriteMonthlyBudgetDao
 import com.ivy.data.db.dao.write.WritePlannedPaymentRuleDao
 import com.ivy.data.db.dao.write.WriteSettingsDao
-import com.ivy.data.db.dao.write.WriteTagAssociationDao
 import com.ivy.data.db.dao.write.WriteTagDao
+import com.ivy.data.db.dao.write.WriteTagAssociationDao
 import com.ivy.data.db.dao.write.WriteTransactionDao
+import com.ivy.data.db.dao.write.WriteTransactionSplitDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object RoomDbModule {
-
-    @Provides
-    @Singleton
-    fun provideIvyRoomDatabase(
-        @ApplicationContext appContext: Context,
-    ): IvyRoomDatabase {
-        return IvyRoomDatabase.create(
-            applicationContext = appContext,
-        )
-    }
-
-    @Provides
-    fun provideUserDao(db: IvyRoomDatabase): UserDao {
-        return db.userDao
-    }
+class RoomDbModule {
 
     @Provides
     fun provideAccountDao(db: IvyRoomDatabase): AccountDao {
@@ -76,6 +60,11 @@ object RoomDbModule {
     @Provides
     fun provideSettingsDao(db: IvyRoomDatabase): SettingsDao {
         return db.settingsDao
+    }
+
+    @Provides
+    fun provideUserDao(db: IvyRoomDatabase): UserDao {
+        return db.userDao
     }
 
     @Provides
@@ -173,5 +162,15 @@ object RoomDbModule {
     @Provides
     fun provideWriteMonthlyBudgetDao(db: IvyRoomDatabase): WriteMonthlyBudgetDao {
         return db.writeMonthlyBudgetDao
+    }
+
+    @Provides
+    fun provideTransactionSplitDao(db: IvyRoomDatabase): TransactionSplitDao {
+        return db.transactionSplitDao
+    }
+
+    @Provides
+    fun provideWriteTransactionSplitDao(db: IvyRoomDatabase): WriteTransactionSplitDao {
+        return db.writeTransactionSplitDao
     }
 }
