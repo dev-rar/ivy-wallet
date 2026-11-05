@@ -28,6 +28,8 @@ class AccountMapper @Inject constructor(
             icon = icon?.let(IconAsset::from)?.getOrNull(),
             includeInBalance = includeInBalance,
             orderNum = orderNum,
+            accountType = runCatching { com.ivy.data.model.AccountType.valueOf(accountType) }
+                .getOrDefault(com.ivy.data.model.AccountType.BANK),
         )
     }
 
@@ -39,6 +41,7 @@ class AccountMapper @Inject constructor(
             icon = icon?.id,
             orderNum = orderNum,
             includeInBalance = includeInBalance,
+            accountType = accountType.name,
             id = id.value,
             isSynced = true, // TODO: Delete this
         )

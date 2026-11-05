@@ -19,4 +19,5 @@ data class Account(
     val icon: IconAsset?,
     val includeInBalance: Boolean,
     override val orderNum: Double,
+    val accountType: AccountType = AccountType.BANK,
 ) : Identifiable<AccountId>, Reorderable
