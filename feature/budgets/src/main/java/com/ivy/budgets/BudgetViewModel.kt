@@ -10,16 +10,28 @@ import androidx.lifecycle.viewModelScope
 import com.ivy.base.legacy.SharedPrefs
 import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
+import com.ivy.budgets.model.BudgetTab
 import com.ivy.budgets.model.DisplayBudget
+import com.ivy.budgets.model.EditBudgetItemModalData
 import com.ivy.data.db.dao.write.WriteBudgetDao
+import com.ivy.data.db.entity.BudgetGroupEntity
+import com.ivy.data.db.entity.BudgetItemEntity
 import com.ivy.data.model.Category
 import com.ivy.data.model.Expense
 import com.ivy.data.model.Income
 import com.ivy.data.model.Transaction
 import com.ivy.data.model.Transfer
+import com.ivy.data.model.budget.BudgetGroupType
+import com.ivy.data.model.budget.BudgetItemType
+import com.ivy.data.model.budget.BudgetPeriod
 import com.ivy.data.repository.CategoryRepository
+import com.ivy.data.repository.MonthlyBudgetRepository
 import com.ivy.data.temp.migration.getAccountId
 import com.ivy.data.temp.migration.getValue
+import com.ivy.domain.model.budget.MonthlyPlanSummary
+import com.ivy.domain.usecase.budget.CopyPreviousMonthPlanUseCase
+import com.ivy.domain.usecase.budget.GetMonthlyPlanSummaryUseCase
+import com.ivy.domain.usecase.budget.SaveBudgetItemUseCase
 import com.ivy.frp.sumOfSuspend
 import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.toCloseTimeRange
@@ -43,6 +55,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.abs
 
@@ -61,6 +74,10 @@ class BudgetViewModel @Inject constructor(
     private val exchangeAct: ExchangeAct,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
+    private val getMonthlyPlanSummaryUseCase: GetMonthlyPlanSummaryUseCase,
+    private val copyPreviousMonthPlanUseCase: CopyPreviousMonthPlanUseCase,
+    private val saveBudgetItemUseCase: SaveBudgetItemUseCase,
+    private val monthlyBudgetRepository: MonthlyBudgetRepository,
 ) : ComposeViewModel<BudgetScreenState, BudgetScreenEvent>() {
 
     private val baseCurrency = mutableStateOf("")
@@ -74,10 +91,18 @@ class BudgetViewModel @Inject constructor(
     private val reorderModalVisible = mutableStateOf(false)
     private val budgetModalData = mutableStateOf<BudgetModalData?>(null)
 
+    // Monthly zero-based budget states
+    private val selectedTab = mutableStateOf(BudgetTab.MONTHLY_PLAN)
+    private val monthlyPeriod = mutableStateOf(BudgetPeriod.current())
+    private val monthlyPlan = mutableStateOf<MonthlyPlanSummary?>(null)
+    private val editItemModalData = mutableStateOf<EditBudgetItemModalData?>(null)
+    private val editIncomeModalVisible = mutableStateOf(false)
+
     @Composable
     override fun uiState(): BudgetScreenState {
         LaunchedEffect(Unit) {
             start()
+            loadMonthlyPlan(monthlyPeriod.value)
         }
 
         return BudgetScreenState(
@@ -90,7 +115,12 @@ class BudgetViewModel @Inject constructor(
             totalRemainingBudgetText = getTotalRemainingBudgetText(),
             timeRange = getTimeRange(),
             reorderModalVisible = getReorderModalVisible(),
-            budgetModalData = getBudgetModalData()
+            budgetModalData = getBudgetModalData(),
+            selectedTab = selectedTab.value,
+            monthlyPeriod = monthlyPeriod.value,
+            monthlyPlan = monthlyPlan.value,
+            editItemModalData = editItemModalData.value,
+            editIncomeModalVisible = editIncomeModalVisible.value
         )
     }
 
@@ -178,6 +208,87 @@ class BudgetViewModel @Inject constructor(
             is BudgetScreenEvent.OnBudgetModalData -> {
                 budgetModalData.value = event.budgetModalData
             }
+
+            is BudgetScreenEvent.OnSelectTab -> {
+                selectedTab.value = event.tab
+            }
+
+            is BudgetScreenEvent.OnChangePeriod -> {
+                monthlyPeriod.value = event.period
+                loadMonthlyPlan(event.period)
+            }
+
+            is BudgetScreenEvent.OnCopyPreviousMonth -> {
+                viewModelScope.launch {
+                    copyPreviousMonthPlanUseCase(monthlyPeriod.value)
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+
+            is BudgetScreenEvent.OnEditPlannedIncome -> {
+                viewModelScope.launch {
+                    monthlyBudgetRepository.updatePlannedIncome(monthlyPeriod.value, event.income)
+                    monthlyBudgetRepository.updateCarryover(monthlyPeriod.value, event.carryover)
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+
+            is BudgetScreenEvent.OnOpenEditIncomeModal -> {
+                editIncomeModalVisible.value = event.visible
+            }
+
+            is BudgetScreenEvent.OnOpenEditItemModal -> {
+                editItemModalData.value = event.data
+            }
+
+            is BudgetScreenEvent.OnSaveBudgetItem -> {
+                viewModelScope.launch {
+                    val entity = BudgetItemEntity(
+                        id = event.itemId ?: UUID.randomUUID(),
+                        groupId = event.groupId,
+                        planPeriod = event.period.value,
+                        name = event.name,
+                        plannedAmount = event.plannedAmount,
+                        itemType = event.itemType.name,
+                        categoryId = event.categoryId
+                    )
+                    saveBudgetItemUseCase.save(entity)
+                    loadMonthlyPlan(event.period)
+                }
+            }
+
+            is BudgetScreenEvent.OnDeleteBudgetItem -> {
+                viewModelScope.launch {
+                    saveBudgetItemUseCase.delete(event.itemId)
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+
+            is BudgetScreenEvent.OnAddBudgetGroup -> {
+                viewModelScope.launch {
+                    val group = BudgetGroupEntity(
+                        id = UUID.randomUUID(),
+                        planPeriod = event.period.value,
+                        name = event.name,
+                        groupType = event.groupType.name
+                    )
+                    monthlyBudgetRepository.saveGroup(group)
+                    loadMonthlyPlan(event.period)
+                }
+            }
+
+            is BudgetScreenEvent.OnDeleteBudgetGroup -> {
+                viewModelScope.launch {
+                    monthlyBudgetRepository.deleteGroup(event.groupId)
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+        }
+    }
+
+    private fun loadMonthlyPlan(period: BudgetPeriod) {
+        viewModelScope.launch {
+            monthlyPlan.value = getMonthlyPlanSummaryUseCase(period)
         }
     }
 
@@ -229,7 +340,6 @@ class BudgetViewModel @Inject constructor(
         baseCurrencyCode: String,
         accounts: List<Account>
     ): Double {
-        // TODO: Re-work this by creating an FPAction for it
         val accountsFilter = budget.parseAccountIds()
         val categoryFilter = budget.parseCategoryIds()
 
@@ -288,6 +398,7 @@ class BudgetViewModel @Inject constructor(
     }
 
     private fun reorder(newOrder: List<DisplayBudget>) {
+        this@BudgetViewModel.budgets.value = newOrder.toImmutableList()
         viewModelScope.launch {
             com.ivy.legacy.utils.ioThread {
                 newOrder.forEachIndexed { index, item ->

@@ -1,7 +1,11 @@
 package com.ivy.budgets
 
+import com.ivy.budgets.model.BudgetTab
 import com.ivy.budgets.model.DisplayBudget
+import com.ivy.budgets.model.EditBudgetItemModalData
 import com.ivy.data.model.Category
+import com.ivy.data.model.budget.BudgetPeriod
+import com.ivy.domain.model.budget.MonthlyPlanSummary
 import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.datamodel.Account
 import kotlinx.collections.immutable.ImmutableList
@@ -18,5 +22,10 @@ data class BudgetScreenState(
     val totalRemainingBudgetText: String?,
     val timeRange: FromToTimeRange?,
     val reorderModalVisible: Boolean,
-    val budgetModalData: BudgetModalData?
+    val budgetModalData: BudgetModalData?,
+    val selectedTab: BudgetTab = BudgetTab.MONTHLY_PLAN,
+    val monthlyPeriod: BudgetPeriod = BudgetPeriod.current(),
+    val monthlyPlan: MonthlyPlanSummary? = null,
+    val editItemModalData: EditBudgetItemModalData? = null,
+    val editIncomeModalVisible: Boolean = false
 )
