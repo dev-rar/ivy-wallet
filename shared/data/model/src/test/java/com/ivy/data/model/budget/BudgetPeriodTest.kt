@@ -3,6 +3,8 @@ package com.ivy.data.model.budget
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import org.junit.Test
+import java.time.ZoneOffset
+import java.util.Locale
 
 class BudgetPeriodTest {
     @Test
@@ -45,5 +47,17 @@ class BudgetPeriodTest {
         (p1 < p2) shouldBe true
         (p2 < p3) shouldBe true
         (p3 > p1) shouldBe true
+    }
+
+    @Test
+    fun `instants and display formatting`() {
+        val nov = BudgetPeriod.of(2026, 11)
+        val startUtc = nov.startInstant(ZoneOffset.UTC)
+        val endUtc = nov.endInstant(ZoneOffset.UTC)
+
+        startUtc.toString() shouldBe "2026-11-01T00:00:00Z"
+        endUtc.isAfter(startUtc) shouldBe true
+
+        nov.toDisplayMonthYear(Locale.US) shouldBe "November 2026"
     }
 }

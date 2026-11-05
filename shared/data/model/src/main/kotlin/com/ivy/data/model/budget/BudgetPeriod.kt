@@ -1,7 +1,11 @@
 package com.ivy.data.model.budget
 
+import java.time.Instant
+import java.time.LocalTime
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @JvmInline
 value class BudgetPeriod(val value: String) : Comparable<BudgetPeriod> {
@@ -20,6 +24,17 @@ value class BudgetPeriod(val value: String) : Comparable<BudgetPeriod> {
     fun next(): BudgetPeriod = from(toYearMonth().plusMonths(1))
 
     fun previous(): BudgetPeriod = from(toYearMonth().minusMonths(1))
+
+    fun startInstant(zoneId: ZoneId = ZoneId.systemDefault()): Instant =
+        toYearMonth().atDay(1).atStartOfDay(zoneId).toInstant()
+
+    fun endInstant(zoneId: ZoneId = ZoneId.systemDefault()): Instant =
+        toYearMonth().atEndOfMonth().atTime(LocalTime.MAX).atZone(zoneId).toInstant()
+
+    fun toDisplayMonthYear(locale: Locale = Locale.getDefault()): String {
+        val formatter = DateTimeFormatter.ofPattern("MMMM yyyy", locale)
+        return toYearMonth().format(formatter)
+    }
 
     override fun compareTo(other: BudgetPeriod): Int {
         return value.compareTo(other.value)
