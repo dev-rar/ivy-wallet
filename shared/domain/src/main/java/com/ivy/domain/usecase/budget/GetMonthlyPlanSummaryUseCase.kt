@@ -9,15 +9,18 @@ import com.ivy.data.model.budget.BudgetItemType
 import com.ivy.data.model.budget.BudgetPeriod
 import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.MonthlyBudgetRepository
+import com.ivy.data.repository.TransactionSplitRepository
 import com.ivy.domain.model.budget.MonthlyGroupSummary
 import com.ivy.domain.model.budget.MonthlyItemSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
 import kotlinx.coroutines.withContext
+import java.util.UUID
 import javax.inject.Inject
 
 class GetMonthlyPlanSummaryUseCase @Inject constructor(
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
     private val transactionDao: TransactionDao,
+    private val splitRepository: TransactionSplitRepository,
     private val categoryRepository: CategoryRepository,
     private val dispatchersProvider: DispatchersProvider,
 ) {
@@ -31,17 +34,51 @@ class GetMonthlyPlanSummaryUseCase @Inject constructor(
             val startInstant = period.startInstant()
             val endInstant = period.endInstant()
             val transactions = transactionDao.findAllBetween(startInstant, endInstant)
+            val trnIds = transactions.map { it.id }.toSet()
+            val allSplits = splitRepository.findByTransactionIds(trnIds)
+            val splitsByTrnId = allSplits.groupBy { it.transactionId.value }
 
-            // Group transactions by category and calculate actual spent/income
-            val expensesByCategory = transactions
-                .filter { it.type == TransactionType.EXPENSE && it.categoryId != null }
-                .groupBy { it.categoryId!! }
-                .mapValues { (_, trns) -> trns.sumOf { it.amount } }
+            val actualByBudgetItemId = mutableMapOf<UUID, Double>()
+            val expenseByCategory = mutableMapOf<UUID, Double>()
+            val incomeByCategory = mutableMapOf<UUID, Double>()
 
-            val incomesByCategory = transactions
-                .filter { it.type == TransactionType.INCOME && it.categoryId != null }
-                .groupBy { it.categoryId!! }
-                .mapValues { (_, trns) -> trns.sumOf { it.amount } }
+            for (trn in transactions) {
+                val splits = splitsByTrnId[trn.id]
+                if (splits.isNullOrEmpty()) {
+                    if (trn.categoryId != null) {
+                        when (trn.type) {
+                            TransactionType.EXPENSE -> {
+                                expenseByCategory[trn.categoryId!!] =
+                                    (expenseByCategory[trn.categoryId!!] ?: 0.0) + trn.amount
+                            }
+                            TransactionType.INCOME -> {
+                                incomeByCategory[trn.categoryId!!] =
+                                    (incomeByCategory[trn.categoryId!!] ?: 0.0) + trn.amount
+                            }
+                            else -> {}
+                        }
+                    }
+                } else {
+                    for (split in splits) {
+                        if (split.budgetItemId != null) {
+                            actualByBudgetItemId[split.budgetItemId!!] =
+                                (actualByBudgetItemId[split.budgetItemId!!] ?: 0.0) + split.amount
+                        } else if (split.categoryId != null) {
+                            when (trn.type) {
+                                TransactionType.EXPENSE -> {
+                                    expenseByCategory[split.categoryId!!.value] =
+                                        (expenseByCategory[split.categoryId!!.value] ?: 0.0) + split.amount
+                                }
+                                TransactionType.INCOME -> {
+                                    incomeByCategory[split.categoryId!!.value] =
+                                        (incomeByCategory[split.categoryId!!.value] ?: 0.0) + split.amount
+                                }
+                                else -> {}
+                            }
+                        }
+                    }
+                }
+            }
 
             val itemsByGroupId = items.groupBy { it.groupId }
 
@@ -53,13 +90,17 @@ class GetMonthlyPlanSummaryUseCase @Inject constructor(
                 val itemSummaries = groupItems.map { item ->
                     val cat = item.categoryId?.let { categories[it] }
                     val itemType = runCatching { BudgetItemType.valueOf(item.itemType) }.getOrDefault(BudgetItemType.STANDARD)
-                    val actual = if (item.categoryId != null) {
+
+                    val directActual = actualByBudgetItemId[item.id] ?: 0.0
+                    val categoryActual = if (item.categoryId != null) {
                         if (isIncomeGroup) {
-                            incomesByCategory[item.categoryId] ?: 0.0
+                            incomeByCategory[item.categoryId] ?: 0.0
                         } else {
-                            expensesByCategory[item.categoryId] ?: 0.0
+                            expenseByCategory[item.categoryId] ?: 0.0
                         }
                     } else 0.0
+
+                    val actual = directActual + categoryActual
 
                     MonthlyItemSummary(
                         id = item.id,
