@@ -115,4 +115,9 @@ class BackupDataUseCaseTest {
     fun `backup compatibility with 450 (150)`() = runTest {
         backupTestCase("450-150")
     }
+
+    @Test
+    fun `backup compatibility with legacy representative wallet`() = runTest {
+        backupTestCase("legacy-representative-wallet")
+    }
 }
