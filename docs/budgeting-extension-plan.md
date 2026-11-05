@@ -358,3 +358,31 @@ This document specifies the architecture, data models, financial rules, phased r
   - Verified round-trip import, export, and re-import data integrity via `./gradlew :shared:data:model:test :shared:data:core:test`. (154 actionable tasks: 78 executed, 76 up-to-date, BUILD SUCCESSFUL).
 
 
+
+## 10. Verification Results (Phase 2 — Monthly Zero-Based Budgeting)
+
+- **Room Schema & Migration 130 to 131**:
+  - Implemented Room entities in `shared/data/core`:
+    - `MonthlyBudgetPlanEntity` (period `YYYY-MM`, plannedIncome, carryoverAmount, isClosed, createdAt)
+    - `BudgetGroupEntity` (planPeriod, name, groupType, orderNum)
+    - `BudgetItemEntity` (groupId, planPeriod, name, plannedAmount, itemType, categoryId, orderNum)
+  - Created Room DAOs: `MonthlyBudgetDao`, `WriteMonthlyBudgetDao`, and in-memory `FakeMonthlyBudgetDao`.
+  - Created Room migration `Migration130to131_BudgetingFoundations` and bumped `IvyRoomDatabase` version to 131. Exported Room schema generated at `shared/data/core/schemas/com.ivy.data.db.IvyRoomDatabase/131.json`.
+  - Extended `IvyWalletCompleteData` backup container with default empty lists for full backwards and forwards serialization compatibility.
+- **Repositories & Domain Use Cases**:
+  - `MonthlyBudgetRepository`: Handles plan creation, default EveryDollar group seeding, group additions/deletions, item modifications, and deep "Copy Previous Month" duplication.
+  - `GetMonthlyPlanSummaryUseCase`: Aggregates planned income, carryover, planned allocations, calculates real-time actual transaction spending matched by category, and enforces zero-based balancing:
+    $$\text{Left to Assign} = \text{Planned Income} + \text{Carryover} - \sum \text{Planned Allocations}$$
+  - `CopyPreviousMonthPlanUseCase` & `SaveBudgetItemUseCase`: Domain use cases for monthly workflow.
+  - Unit tests in `MonthlyPlanSummaryTest` verifying zero-based balance math, item progress, and remaining calculations.
+- **UI Architecture & Material Compose Screen**:
+  - Top tab switcher (`TabSelector`): Seamless toggle between `[ Monthly Plan ]` and `[ Classic ]` category budgets.
+  - `MonthlyPeriodHeader`: Arrow navigation across past/future months (`YYYY-MM`) with "Copy Plan from [Previous Month]" quick action.
+  - `ZeroBasedSummaryBanner`: Real-time status badge ("Every Dollar/Rupee has a job" / "X left to assign" / "Over-assigned"), planned income, carryover, and total allocations.
+  - `BudgetGroupSection` & `BudgetItemRow`: Group cards with + Add Item button, category dot, item name, planned vs spent, remaining amount, and visual progress bar.
+  - `EditBudgetItemModal` & `EditIncomeModal`: Material bottom sheets to edit planned income, carryovers, budget items, and category linkages.
+- **Test & Build Verification**:
+  - `./gradlew.bat :shared:data:core:test` -> BUILD SUCCESSFUL (all unit and migration tests pass).
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :app:assembleDebug` -> BUILD SUCCESSFUL (`app-debug.apk` built: 105.1 MB).
