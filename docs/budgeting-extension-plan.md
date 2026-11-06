@@ -478,3 +478,17 @@ This document specifies the architecture, data models, financial rules, phased r
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:planned-payments:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
+## 15. Verification Results (Phase 7 — Paycheck & Cash-Flow Planning)
+
+- **Domain Models & Use Cases**:
+  - Domain models `CashFlowEvent` and `CashFlowProjection` (`startingCash`, `endingCash`, `minimumBalance`, `hasShortfall`, `shortfallDate`, `events`).
+  - `ProjectCashFlowUseCase`: Synthesizes starting liquid balances across bank and cash accounts, aggregates scheduled income events (paychecks) and scheduled expense bills, and chronologically models day-by-day projected cash buffer trajectories throughout the monthly period.
+  - Shortfall detection: Evaluates buffer safety thresholds and alerts users with exact projected dates when outflows will exceed liquid cash before the next scheduled paycheck.
+  - Unit tests in `ProjectCashFlowUseCaseTest` passing: multi-event cash trajectory, paycheck cash replenishment, and negative cash shortfall alerts.
+- **UI Architecture in Budgets**:
+  - `CashFlowProjectionCard`: Real-time forecast card in monthly budget view showing Starting Cash, Lowest Point (Buffer), Ending Projected, Shortfall Alerts, and upcoming event timeline.
+  - Integration with `BudgetViewModel`, `BudgetScreenState`, and `MonthlyBudgetPlanView`.
+- **Build Verification**:
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
