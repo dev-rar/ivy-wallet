@@ -432,3 +432,27 @@ This document specifies the architecture, data models, financial rules, phased r
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:accounts:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :app:assembleDebug` -> BUILD SUCCESSFUL.
+
+## 13. Verification Results (Phase 5 — Sinking Funds & Savings Goals)
+
+- **Room Schema & Migration 133 to 134**:
+  - Entity `SinkingFundEntity` (`id`, `budgetItemId`, `targetAmount`, `targetDate`, `openingBalance`, `notes`).
+  - Read DAO `SinkingFundDao`, write DAO `WriteSinkingFundDao`, and in-memory test double `FakeSinkingFundDao`.
+  - Migration `Migration133to134_SinkingFunds` and bumped database version to 134. Exported schema generated at `shared/data/core/schemas/com.ivy.data.db.IvyRoomDatabase/134.json`.
+  - Updated `IvyWalletCompleteData`, `BackupDataUseCase`, and `BackupDataUseCaseTest` for full offline backup/restore serialization.
+- **Repository & Domain Use Cases**:
+  - `SinkingFundRepository`: Complete CRUD operations and reactive observation flows.
+  - Domain models `SinkingFund` and `SinkingFundProgress`.
+  - Added `SINKING_FUND` to `BudgetItemType`.
+  - Added `sinkingFundProgress: SinkingFundProgress?` to `MonthlyItemSummary`.
+  - `GetSinkingFundProgressUseCase`: Calculates cumulative saved balance (opening balance + monthly allocations - spending), remaining goal target, percentage progress, months remaining, and needed monthly contribution.
+  - Solvency check: Evaluates total liquid cash in bank/cash accounts against planned sinking fund savings to warn users if funds are underfunded on paper.
+  - Unit tests in `SinkingFundProgressTest` passing: target progression, monthly contributions, underfunded solvency checks, and fully-funded completions.
+- **UI Architecture in Budgets**:
+  - `BudgetItemRow`: Integrated goal progress bar (`ProgressBar` with positive progress), target/saved summary badges, funded state indicator, and cash solvency warnings.
+  - `EditBudgetItemModal`: Type selector toggle ("Standard Expense" vs "🎯 Sinking Fund"), goal target amount, and starting balance fields.
+  - Integration with `BudgetViewModel` and `BudgetScreen` on save/delete events and room persistence.
+- **Build Verification**:
+  - `./gradlew.bat :shared:data:core:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
