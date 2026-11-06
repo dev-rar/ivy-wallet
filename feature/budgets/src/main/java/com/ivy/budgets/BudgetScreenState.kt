@@ -8,6 +8,7 @@ import com.ivy.data.model.budget.BudgetPeriod
 import com.ivy.domain.model.budget.MonthCloseSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
 import com.ivy.domain.model.cashflow.CashFlowProjection
+import com.ivy.domain.model.report.PlannedVsActualReport
 import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.datamodel.Account
 import kotlinx.collections.immutable.ImmutableList
@@ -32,5 +33,7 @@ data class BudgetScreenState(
     val editIncomeModalVisible: Boolean = false,
     val cashFlowProjection: CashFlowProjection? = null,
     val closeMonthModalVisible: Boolean = false,
-    val monthCloseSummary: MonthCloseSummary? = null
+    val monthCloseSummary: MonthCloseSummary? = null,
+    val plannedVsActualModalVisible: Boolean = false,
+    val plannedVsActualReport: PlannedVsActualReport? = null
 )

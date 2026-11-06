@@ -30,14 +30,19 @@ import com.ivy.data.repository.MonthlyBudgetRepository
 import com.ivy.data.repository.SinkingFundRepository
 import com.ivy.data.temp.migration.getAccountId
 import com.ivy.data.temp.migration.getValue
+import com.ivy.data.file.FileSystem
+import com.ivy.domain.RootScreen
 import com.ivy.domain.model.budget.MonthCloseSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
 import com.ivy.domain.model.cashflow.CashFlowProjection
+import com.ivy.domain.model.report.PlannedVsActualReport
 import com.ivy.domain.usecase.budget.CloseMonthPlanUseCase
 import com.ivy.domain.usecase.budget.CopyPreviousMonthPlanUseCase
 import com.ivy.domain.usecase.budget.GetMonthlyPlanSummaryUseCase
 import com.ivy.domain.usecase.budget.SaveBudgetItemUseCase
 import com.ivy.domain.usecase.cashflow.ProjectCashFlowUseCase
+import com.ivy.domain.usecase.csv.ExportBudgetPlanCsvUseCase
+import com.ivy.domain.usecase.report.GetPlannedVsActualReportUseCase
 import com.ivy.frp.sumOfSuspend
 import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.toCloseTimeRange
@@ -87,6 +92,9 @@ class BudgetViewModel @Inject constructor(
     private val sinkingFundRepository: SinkingFundRepository,
     private val projectCashFlowUseCase: ProjectCashFlowUseCase,
     private val closeMonthPlanUseCase: CloseMonthPlanUseCase,
+    private val getPlannedVsActualReportUseCase: GetPlannedVsActualReportUseCase,
+    private val exportBudgetPlanCsvUseCase: ExportBudgetPlanCsvUseCase,
+    private val fileSystem: FileSystem,
 ) : ComposeViewModel<BudgetScreenState, BudgetScreenEvent>() {
 
     private val baseCurrency = mutableStateOf("")
@@ -109,6 +117,8 @@ class BudgetViewModel @Inject constructor(
     private val cashFlowProjection = mutableStateOf<CashFlowProjection?>(null)
     private val closeMonthModalVisible = mutableStateOf(false)
     private val monthCloseSummary = mutableStateOf<MonthCloseSummary?>(null)
+    private val plannedVsActualModalVisible = mutableStateOf(false)
+    private val plannedVsActualReport = mutableStateOf<PlannedVsActualReport?>(null)
 
     @Composable
     override fun uiState(): BudgetScreenState {
@@ -135,7 +145,9 @@ class BudgetViewModel @Inject constructor(
             editIncomeModalVisible = editIncomeModalVisible.value,
             cashFlowProjection = cashFlowProjection.value,
             closeMonthModalVisible = closeMonthModalVisible.value,
-            monthCloseSummary = monthCloseSummary.value
+            monthCloseSummary = monthCloseSummary.value,
+            plannedVsActualModalVisible = plannedVsActualModalVisible.value,
+            plannedVsActualReport = plannedVsActualReport.value
         )
     }
 
@@ -337,6 +349,29 @@ class BudgetViewModel @Inject constructor(
                 viewModelScope.launch {
                     closeMonthPlanUseCase.reopenMonth(monthlyPeriod.value)
                     loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+
+            is BudgetScreenEvent.OnOpenPlannedVsActualModal -> {
+                viewModelScope.launch {
+                    if (event.visible) {
+                        plannedVsActualReport.value = runCatching {
+                            getPlannedVsActualReportUseCase(monthlyPeriod.value)
+                        }.getOrNull()
+                    }
+                    plannedVsActualModalVisible.value = event.visible
+                }
+            }
+
+            is BudgetScreenEvent.OnExportBudgetPlanCsv -> {
+                viewModelScope.launch {
+                    val csv = exportBudgetPlanCsvUseCase.exportCsv(monthlyPeriod.value)
+                    ivyContext.createNewFile("IvyWalletBudget-${monthlyPeriod.value.value}.csv") { fileUri ->
+                        viewModelScope.launch {
+                            fileSystem.writeToFile(fileUri, csv)
+                            (event.context as? RootScreen)?.shareCSVFile(fileUri)
+                        }
+                    }
                 }
             }
         }

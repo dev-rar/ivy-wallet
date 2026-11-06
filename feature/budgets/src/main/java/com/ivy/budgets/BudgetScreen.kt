@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +36,7 @@ import com.ivy.budgets.monthly.CloseMonthModal
 import com.ivy.budgets.monthly.EditBudgetItemModal
 import com.ivy.budgets.monthly.EditIncomeModal
 import com.ivy.budgets.monthly.MonthlyBudgetPlanView
+import com.ivy.budgets.monthly.PlannedVsActualModal
 import com.ivy.design.api.LocalTimeFormatter
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
@@ -68,6 +70,8 @@ private fun BoxWithConstraintsScope.UI(
     state: BudgetScreenState,
     onEvent: (BudgetScreenEvent) -> Unit = {}
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -108,6 +112,7 @@ private fun BoxWithConstraintsScope.UI(
                 onCopyPreviousMonth = { onEvent(BudgetScreenEvent.OnCopyPreviousMonth) },
                 onEditIncome = { onEvent(BudgetScreenEvent.OnOpenEditIncomeModal(true)) },
                 onReviewMonth = { onEvent(BudgetScreenEvent.OnOpenCloseMonthModal(true)) },
+                onViewReport = { onEvent(BudgetScreenEvent.OnOpenPlannedVsActualModal(true)) },
                 onAddItem = { groupId ->
                     onEvent(
                         BudgetScreenEvent.OnOpenEditItemModal(
@@ -292,6 +297,18 @@ private fun BoxWithConstraintsScope.UI(
         },
         dismiss = {
             onEvent(BudgetScreenEvent.OnOpenCloseMonthModal(false))
+        }
+    )
+
+    PlannedVsActualModal(
+        visible = state.plannedVsActualModalVisible,
+        report = state.plannedVsActualReport,
+        baseCurrency = state.baseCurrency,
+        onExportCsv = {
+            onEvent(BudgetScreenEvent.OnExportBudgetPlanCsv(context))
+        },
+        dismiss = {
+            onEvent(BudgetScreenEvent.OnOpenPlannedVsActualModal(false))
         }
     )
 }

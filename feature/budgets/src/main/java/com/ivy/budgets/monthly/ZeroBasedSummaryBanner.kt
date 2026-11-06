@@ -35,6 +35,7 @@ fun ZeroBasedSummaryBanner(
     baseCurrency: String,
     onEditIncome: () -> Unit,
     onReviewMonth: () -> Unit = {},
+    onViewReport: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -170,33 +171,64 @@ fun ZeroBasedSummaryBanner(
 
         Spacer(Modifier.height(10.dp))
 
-        // Review & Close Month button
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    if (plan.isClosed) Color(0xFF2E7D32).copy(alpha = 0.12f)
-                    else UI.colors.primary.copy(alpha = 0.12f)
-                )
-                .clickable { onReviewMonth() }
-                .padding(vertical = 10.dp, horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IvyIcon(
-                icon = if (plan.isClosed) R.drawable.ic_check else R.drawable.ic_calendar,
-                tint = if (plan.isClosed) Color(0xFF4CAF50) else UI.colors.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = if (plan.isClosed) "Month Closed ✓ (Tap to review or reopen)" else "Review & Close Month",
-                style = UI.typo.b2.style(
-                    color = if (plan.isClosed) Color(0xFF4CAF50) else UI.colors.primary,
-                    fontWeight = FontWeight.SemiBold
+            // Review & Close Month button
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (plan.isClosed) Color(0xFF2E7D32).copy(alpha = 0.12f)
+                        else UI.colors.primary.copy(alpha = 0.12f)
+                    )
+                    .clickable { onReviewMonth() }
+                    .padding(vertical = 10.dp, horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                IvyIcon(
+                    icon = if (plan.isClosed) R.drawable.ic_check else R.drawable.ic_calendar,
+                    tint = if (plan.isClosed) Color(0xFF4CAF50) else UI.colors.primary,
+                    modifier = Modifier.size(16.dp)
                 )
-            )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = if (plan.isClosed) "Closed ✓" else "Close Month",
+                    style = UI.typo.b2.style(
+                        color = if (plan.isClosed) Color(0xFF4CAF50) else UI.colors.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+            }
+
+            // Planned vs Actual Report button
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(UI.colors.medium.copy(alpha = 0.08f))
+                    .clickable { onViewReport() }
+                    .padding(vertical = 10.dp, horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                IvyIcon(
+                    icon = R.drawable.ic_vue_chart_chart,
+                    tint = UI.colors.pureInverse,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "Variance Report",
+                    style = UI.typo.b2.style(
+                        color = UI.colors.pureInverse,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+            }
         }
     }
 }

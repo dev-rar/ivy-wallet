@@ -43,4 +43,6 @@ sealed interface BudgetScreenEvent {
     data class OnOpenCloseMonthModal(val visible: Boolean) : BudgetScreenEvent
     data class OnCloseMonth(val rolloverSurplus: Boolean) : BudgetScreenEvent
     data object OnReopenMonth : BudgetScreenEvent
+    data class OnOpenPlannedVsActualModal(val visible: Boolean) : BudgetScreenEvent
+    data class OnExportBudgetPlanCsv(val context: Any) : BudgetScreenEvent
 }
