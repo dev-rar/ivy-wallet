@@ -456,3 +456,25 @@ This document specifies the architecture, data models, financial rules, phased r
   - `./gradlew.bat :shared:data:core:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
+## 14. Verification Results (Phase 6 — Bills, Recurrence & Reminders)
+
+- **Room Schema & Migration 134 to 135**:
+  - Added optional `budgetItemId` (`TEXT DEFAULT NULL`) column and index on `planned_payment_rules`.
+  - Updated `PlannedPaymentRuleEntity` with `@SerialName("budgetItemId") val budgetItemId: UUID? = null`.
+  - Read DAO `PlannedPaymentRuleDao`: added `findByBudgetItemId(budgetItemId: UUID)`.
+  - In-memory test double `FakePlannedPaymentDao`: updated with `findByBudgetItemId`.
+  - Migration `Migration134to135_PlannedPaymentBudgetItem` and bumped database version to 135. Exported schema generated at `shared/data/core/schemas/com.ivy.data.db.IvyRoomDatabase/135.json`.
+- **Repository & Domain Use Cases**:
+  - Domain models `PlannedPaymentRule`, `BillStatus` (`SCHEDULED`, `DUE_SOON`, `OVERDUE`, `PAID`), and `BudgetItemBillSummary`.
+  - Added `bills: List<BudgetItemBillSummary>` to `MonthlyItemSummary`.
+  - `GetBudgetItemBillsUseCase`: Evaluates planned recurring bills against active monthly budget items, calculates due dates within the month, detects payments via completed transaction matching, and flags overdue / due soon / paid statuses.
+  - Unit tests in `BudgetItemBillsTest` passing: overdue bill detection, paid bill detection via matching recurring rule, and due soon alerts.
+- **UI Architecture in Budgets**:
+  - `BudgetItemRow`: Integrated bill status summary chips (`⚠️ Overdue`, `⚡ Due Soon`, `✓ Paid`, `📅 Scheduled`).
+  - Integration with `GetMonthlyPlanSummaryUseCase` for reactive bills aggregation.
+- **Build Verification**:
+  - `./gradlew.bat :shared:data:core:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:planned-payments:testDebugUnitTest` -> BUILD SUCCESSFUL.
