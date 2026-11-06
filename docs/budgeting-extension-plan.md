@@ -177,7 +177,7 @@ This document specifies the architecture, data models, financial rules, phased r
 - [ ] **Phase 5 — Sinking Funds and Savings Goals** `Not started`
 - [ ] **Phase 6 — Bills, Recurrence, and Reminders** `Not started`
 - [ ] **Phase 7 — Paycheck and Cash-Flow Planning** `Not started`
-- [ ] **Phase 8 — Month Close and Carryover** `Not started`
+- [x] **Phase 8 — Month Close and Carryover** `Completed`
 - [ ] **Phase 9 — Reports and Exports** `Not started`
 - [ ] **Phase 10 — Statement Imports and Matching** `Not started`
 - [ ] **Phase 11 — Complete Daily-Use Verification** `Not started`
@@ -492,3 +492,21 @@ This document specifies the architecture, data models, financial rules, phased r
 - **Build Verification**:
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
+## 16. Verification Results (Phase 8 — Month Close and Carryover)
+
+- **Domain Models & Use Cases**:
+  - Domain models `MonthCloseSummary` (`period`, `isClosed`, `totalIncome`, `totalSpent`, `netSurplus`, `plannedIncome`, `plannedAllocated`, `unspentCategoriesCount`, `overspentCategoriesCount`, `carryoverAmount`).
+  - `CloseMonthPlanUseCase`:
+    - `getSummary`: Aggregates actual income, total spent across expense categories, computes net surplus / deficit, and tallies under-budget and over-budget line counts.
+    - `closeMonth`: Sets `isClosed = true` on the target period's budget plan; optionally rolls positive net surplus into the subsequent month's (`period.next()`) `carryoverAmount`.
+    - `reopenMonth`: Safely resets `isClosed = false` to allow budget and transaction rebalancing.
+  - Unit tests in `CloseMonthPlanUseCaseTest` passing: surplus calculation, surplus rollover transfer to next month's plan, and month reopening.
+- **UI Architecture in Budgets**:
+  - `CloseMonthModal`: Full month review wizard bottom sheet displaying Net Surplus/Savings celebration or deficit warning, Total Income vs Spent, Under/Over budget item tallies, customizable "Roll surplus into next month" toggle, and "Reopen Month" option.
+  - `ZeroBasedSummaryBanner`: Added interactive month review button ("Review & Close Month" / "Month Closed ✓").
+  - Wired through `BudgetViewModel`, `BudgetScreenState`, and `BudgetScreen`.
+- **Build Verification**:
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
