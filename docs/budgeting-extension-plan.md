@@ -178,7 +178,7 @@ This document specifies the architecture, data models, financial rules, phased r
 - [ ] **Phase 6 — Bills, Recurrence, and Reminders** `Not started`
 - [ ] **Phase 7 — Paycheck and Cash-Flow Planning** `Not started`
 - [x] **Phase 8 — Month Close and Carryover** `Completed`
-- [ ] **Phase 9 — Reports and Exports** `Not started`
+- [x] **Phase 9 — Reports and Exports** `Completed`
 - [ ] **Phase 10 — Statement Imports and Matching** `Not started`
 - [ ] **Phase 11 — Complete Daily-Use Verification** `Not started`
 
@@ -509,4 +509,22 @@ This document specifies the architecture, data models, financial rules, phased r
 - **Build Verification**:
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
+## 17. Verification Results (Phase 9 — Reports and Exports)
+
+- **Domain Models & Use Cases**:
+  - Domain models `PlannedVsActualReport`, `PlannedVsActualGroupReport`, `PlannedVsActualItemReport`, and `NetWorthTrendReport`.
+  - `GetPlannedVsActualReportUseCase`: Computes planned vs actual figures across income and expense categories, itemized variances, and overspent warnings.
+  - `GetNetWorthHistoryUseCase`: Aggregates assets, liabilities, and net worth history.
+  - `ExportBudgetPlanCsvUseCase`: Exports monthly zero-based budget lines to CSV (`Period`, `Group`, `Item`, `Type`, `Planned Amount`, `Actual Amount`, `Remaining Amount`, `Progress`).
+  - `ExportInvestmentsCsvUseCase`: Exports investment valuations and accounts to CSV.
+  - Unit tests in `PlannedVsActualReportTest` and `ExportBudgetPlanCsvUseCaseTest` passing.
+- **UI Architecture in Budgets**:
+  - `PlannedVsActualModal`: Complete variance report bottom sheet displaying Net Cash Surplus / Deficit card, Income vs Expenses breakdown, and item-by-item variance chips with "Export CSV" shortcut.
+  - `ZeroBasedSummaryBanner`: Integrated "Variance Report" action button alongside Month Close.
+  - CSV export flow connected to Android share sheet via `RootScreen.shareCSVFile`.
+- **Build Verification**:
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
 
