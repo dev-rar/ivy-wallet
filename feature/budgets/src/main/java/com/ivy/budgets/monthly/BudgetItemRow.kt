@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
+import com.ivy.domain.model.budget.BillStatus
 import com.ivy.domain.model.budget.MonthlyItemSummary
 import com.ivy.legacy.utils.format
 import com.ivy.wallet.ui.theme.components.ProgressBar
@@ -103,6 +104,33 @@ fun BudgetItemRow(
                     style = UI.typo.c.style(
                         color = remainingColor,
                         fontWeight = FontWeight.Medium
+                    )
+                )
+            }
+        }
+
+        if (item.bills.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val overdueCount = item.bills.count { it.status == BillStatus.OVERDUE }
+                val dueSoonCount = item.bills.count { it.status == BillStatus.DUE_SOON }
+                val paidCount = item.bills.count { it.status == BillStatus.PAID }
+
+                val (badgeText, badgeColor) = when {
+                    overdueCount > 0 -> "⚠️ $overdueCount Bill Overdue" to Color(0xFFEF5350)
+                    dueSoonCount > 0 -> "⚡ $dueSoonCount Bill Due Soon" to Color(0xFFFFA000)
+                    paidCount == item.bills.size -> "✓ ${item.bills.size} Bill(s) Paid" to Color(0xFF4CAF50)
+                    else -> "📅 ${item.bills.size} Scheduled Bill(s)" to UI.colors.pureInverse.copy(alpha = 0.6f)
+                }
+
+                Text(
+                    text = badgeText,
+                    style = UI.typo.c.style(
+                        color = badgeColor,
+                        fontWeight = FontWeight.SemiBold
                     )
                 )
             }
