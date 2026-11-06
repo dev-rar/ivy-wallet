@@ -36,6 +36,8 @@ import com.ivy.domain.model.budget.MonthCloseSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
 import com.ivy.domain.model.cashflow.CashFlowProjection
 import com.ivy.domain.model.report.PlannedVsActualReport
+import com.ivy.domain.model.statement.BankStatementProfile
+import com.ivy.domain.model.statement.StatementTransaction
 import com.ivy.domain.usecase.budget.CloseMonthPlanUseCase
 import com.ivy.domain.usecase.budget.CopyPreviousMonthPlanUseCase
 import com.ivy.domain.usecase.budget.GetMonthlyPlanSummaryUseCase
@@ -43,6 +45,8 @@ import com.ivy.domain.usecase.budget.SaveBudgetItemUseCase
 import com.ivy.domain.usecase.cashflow.ProjectCashFlowUseCase
 import com.ivy.domain.usecase.csv.ExportBudgetPlanCsvUseCase
 import com.ivy.domain.usecase.report.GetPlannedVsActualReportUseCase
+import com.ivy.domain.usecase.statement.ImportStatementTransactionsUseCase
+import com.ivy.domain.usecase.statement.ParseBankStatementUseCase
 import com.ivy.frp.sumOfSuspend
 import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.toCloseTimeRange
@@ -95,6 +99,8 @@ class BudgetViewModel @Inject constructor(
     private val getPlannedVsActualReportUseCase: GetPlannedVsActualReportUseCase,
     private val exportBudgetPlanCsvUseCase: ExportBudgetPlanCsvUseCase,
     private val fileSystem: FileSystem,
+    private val parseBankStatementUseCase: ParseBankStatementUseCase,
+    private val importStatementTransactionsUseCase: ImportStatementTransactionsUseCase,
 ) : ComposeViewModel<BudgetScreenState, BudgetScreenEvent>() {
 
     private val baseCurrency = mutableStateOf("")
@@ -119,6 +125,7 @@ class BudgetViewModel @Inject constructor(
     private val monthCloseSummary = mutableStateOf<MonthCloseSummary?>(null)
     private val plannedVsActualModalVisible = mutableStateOf(false)
     private val plannedVsActualReport = mutableStateOf<PlannedVsActualReport?>(null)
+    private val importStatementModalVisible = mutableStateOf(false)
 
     @Composable
     override fun uiState(): BudgetScreenState {
@@ -147,7 +154,8 @@ class BudgetViewModel @Inject constructor(
             closeMonthModalVisible = closeMonthModalVisible.value,
             monthCloseSummary = monthCloseSummary.value,
             plannedVsActualModalVisible = plannedVsActualModalVisible.value,
-            plannedVsActualReport = plannedVsActualReport.value
+            plannedVsActualReport = plannedVsActualReport.value,
+            importStatementModalVisible = importStatementModalVisible.value
         )
     }
 
@@ -374,7 +382,35 @@ class BudgetViewModel @Inject constructor(
                     }
                 }
             }
+
+            is BudgetScreenEvent.OnOpenImportStatementModal -> {
+                importStatementModalVisible.value = event.visible
+            }
+
+            is BudgetScreenEvent.OnImportStatementTransactions -> {
+                viewModelScope.launch {
+                    importStatementTransactionsUseCase.import(
+                        transactions = event.transactions,
+                        accountId = event.accountId,
+                        skipDuplicates = event.skipDuplicates
+                    )
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
         }
+    }
+
+    suspend fun parseStatement(
+        csv: String,
+        profile: BankStatementProfile,
+        accountId: UUID?
+    ): List<StatementTransaction> {
+        return parseBankStatementUseCase.parse(
+            csvText = csv,
+            accountId = accountId,
+            period = monthlyPeriod.value,
+            forcedProfile = if (profile == BankStatementProfile.GENERIC) null else profile
+        )
     }
 
     private fun loadMonthlyPlan(period: BudgetPeriod) {

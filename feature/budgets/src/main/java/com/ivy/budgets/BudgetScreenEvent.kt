@@ -6,6 +6,7 @@ import com.ivy.budgets.model.EditBudgetItemModalData
 import com.ivy.data.model.budget.BudgetGroupType
 import com.ivy.data.model.budget.BudgetItemType
 import com.ivy.data.model.budget.BudgetPeriod
+import com.ivy.domain.model.statement.StatementTransaction
 import com.ivy.legacy.datamodel.Budget
 import com.ivy.wallet.domain.deprecated.logic.model.CreateBudgetData
 import java.util.UUID
@@ -45,4 +46,10 @@ sealed interface BudgetScreenEvent {
     data object OnReopenMonth : BudgetScreenEvent
     data class OnOpenPlannedVsActualModal(val visible: Boolean) : BudgetScreenEvent
     data class OnExportBudgetPlanCsv(val context: Any) : BudgetScreenEvent
+    data class OnOpenImportStatementModal(val visible: Boolean) : BudgetScreenEvent
+    data class OnImportStatementTransactions(
+        val transactions: List<StatementTransaction>,
+        val accountId: UUID,
+        val skipDuplicates: Boolean
+    ) : BudgetScreenEvent
 }

@@ -36,6 +36,7 @@ fun ZeroBasedSummaryBanner(
     onEditIncome: () -> Unit,
     onReviewMonth: () -> Unit = {},
     onViewReport: () -> Unit = {},
+    onImportStatement: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -229,6 +230,34 @@ fun ZeroBasedSummaryBanner(
                     )
                 )
             }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Import Bank Statement button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(UI.colors.medium.copy(alpha = 0.05f))
+                .clickable { onImportStatement() }
+                .padding(vertical = 10.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            IvyIcon(
+                icon = R.drawable.ic_custom_account_s,
+                tint = UI.colors.primary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "Import Bank Statement CSV",
+                style = UI.typo.b2.style(
+                    color = UI.colors.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
         }
     }
 }

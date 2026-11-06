@@ -35,11 +35,15 @@ import com.ivy.budgets.model.EditBudgetItemModalData
 import com.ivy.budgets.monthly.CloseMonthModal
 import com.ivy.budgets.monthly.EditBudgetItemModal
 import com.ivy.budgets.monthly.EditIncomeModal
+import com.ivy.budgets.monthly.ImportStatementModal
 import com.ivy.budgets.monthly.MonthlyBudgetPlanView
 import com.ivy.budgets.monthly.PlannedVsActualModal
 import com.ivy.design.api.LocalTimeFormatter
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
+import com.ivy.domain.model.statement.BankStatementProfile
+import com.ivy.domain.model.statement.StatementTransaction
+import java.util.UUID
 import com.ivy.legacy.legacy.ui.theme.components.BudgetBattery
 import com.ivy.legacy.utils.clickableNoIndication
 import com.ivy.legacy.utils.format
@@ -61,14 +65,16 @@ fun BoxWithConstraintsScope.BudgetScreen(screen: BudgetScreen) {
 
     UI(
         state = uiState,
-        onEvent = viewModel::onEvent
+        onEvent = viewModel::onEvent,
+        onParseStatement = viewModel::parseStatement
     )
 }
 
 @Composable
 private fun BoxWithConstraintsScope.UI(
     state: BudgetScreenState,
-    onEvent: (BudgetScreenEvent) -> Unit = {}
+    onEvent: (BudgetScreenEvent) -> Unit = {},
+    onParseStatement: suspend (String, BankStatementProfile, UUID?) -> List<StatementTransaction> = { _, _, _ -> emptyList() }
 ) {
     val context = LocalContext.current
 
@@ -113,6 +119,7 @@ private fun BoxWithConstraintsScope.UI(
                 onEditIncome = { onEvent(BudgetScreenEvent.OnOpenEditIncomeModal(true)) },
                 onReviewMonth = { onEvent(BudgetScreenEvent.OnOpenCloseMonthModal(true)) },
                 onViewReport = { onEvent(BudgetScreenEvent.OnOpenPlannedVsActualModal(true)) },
+                onImportStatement = { onEvent(BudgetScreenEvent.OnOpenImportStatementModal(true)) },
                 onAddItem = { groupId ->
                     onEvent(
                         BudgetScreenEvent.OnOpenEditItemModal(
@@ -309,6 +316,26 @@ private fun BoxWithConstraintsScope.UI(
         },
         dismiss = {
             onEvent(BudgetScreenEvent.OnOpenPlannedVsActualModal(false))
+        }
+    )
+
+    ImportStatementModal(
+        visible = state.importStatementModalVisible,
+        accounts = state.accounts,
+        period = state.monthlyPeriod,
+        baseCurrency = state.baseCurrency,
+        onParse = onParseStatement,
+        onImport = { transactions, accountId, skipDuplicates ->
+            onEvent(
+                BudgetScreenEvent.OnImportStatementTransactions(
+                    transactions = transactions,
+                    accountId = accountId,
+                    skipDuplicates = skipDuplicates
+                )
+            )
+        },
+        dismiss = {
+            onEvent(BudgetScreenEvent.OnOpenImportStatementModal(false))
         }
     )
 }

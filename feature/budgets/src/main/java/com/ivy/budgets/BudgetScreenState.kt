@@ -35,5 +35,6 @@ data class BudgetScreenState(
     val closeMonthModalVisible: Boolean = false,
     val monthCloseSummary: MonthCloseSummary? = null,
     val plannedVsActualModalVisible: Boolean = false,
-    val plannedVsActualReport: PlannedVsActualReport? = null
+    val plannedVsActualReport: PlannedVsActualReport? = null,
+    val importStatementModalVisible: Boolean = false
 )
