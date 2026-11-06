@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ivy.budgets.model.EditBudgetItemModalData
 import com.ivy.data.model.budget.BudgetPeriod
 import com.ivy.domain.model.budget.MonthlyItemSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
@@ -43,7 +42,7 @@ fun MonthlyBudgetPlanView(
             hasItems = hasItems
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(14.dp))
 
         if (plan != null) {
             ZeroBasedSummaryBanner(
@@ -56,7 +55,7 @@ fun MonthlyBudgetPlanView(
             )
 
             if (cashFlowProjection != null) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 CashFlowProjectionCard(
                     projection = cashFlowProjection,
                     baseCurrency = baseCurrency,
@@ -64,7 +63,7 @@ fun MonthlyBudgetPlanView(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
             for (group in plan.groups) {
                 BudgetGroupSection(
@@ -73,9 +72,8 @@ fun MonthlyBudgetPlanView(
                     onAddItem = onAddItem,
                     onEditItem = onEditItem
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
 }
-

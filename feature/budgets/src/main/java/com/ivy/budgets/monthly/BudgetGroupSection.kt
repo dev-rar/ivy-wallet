@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,9 +56,9 @@ fun BudgetGroupSection(
                     )
                 )
                 Text(
-                    text = "${group.plannedTotal.format(baseCurrency)} $baseCurrency planned • ${group.actualTotal.format(baseCurrency)} $baseCurrency actual",
+                    text = "${group.actualTotal.format(baseCurrency)} / ${group.plannedTotal.format(baseCurrency)} $baseCurrency spent",
                     style = UI.typo.c.style(
-                        color = UI.colors.pureInverse.copy(alpha = 0.5f),
+                        color = UI.colors.pureInverse.copy(alpha = 0.55f),
                         fontWeight = FontWeight.Normal
                     )
                 )
@@ -78,7 +77,7 @@ fun BudgetGroupSection(
                     IvyIcon(
                         icon = R.drawable.ic_plus,
                         tint = UI.colors.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
@@ -124,4 +123,3 @@ fun BudgetGroupSection(
         }
     }
 }
-

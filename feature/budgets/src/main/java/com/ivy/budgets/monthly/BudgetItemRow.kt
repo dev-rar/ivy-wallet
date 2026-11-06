@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
@@ -41,7 +42,7 @@ fun BudgetItemRow(
             .clip(RoundedCornerShape(12.dp))
             .background(UI.colors.medium.copy(alpha = 0.05f))
             .clickable { onClick() }
-            .padding(14.dp)
+            .padding(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -51,12 +52,12 @@ fun BudgetItemRow(
             val dotColor = item.categoryColor?.let { Color(it) } ?: UI.colors.primary
             Box(
                 modifier = Modifier
-                    .size(10.dp)
+                    .size(9.dp)
                     .clip(CircleShape)
                     .background(dotColor)
             )
 
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -64,19 +65,25 @@ fun BudgetItemRow(
                     style = UI.typo.b1.style(
                         color = UI.colors.pureInverse,
                         fontWeight = FontWeight.SemiBold
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 if (item.categoryName != null) {
                     Text(
                         text = item.categoryName ?: "",
-                        style = UI.typo.c.style(
+                        style = UI.typo.nC.style(
                             color = UI.colors.pureInverse.copy(alpha = 0.5f),
                             fontWeight = FontWeight.Normal
-                        )
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+
+            Spacer(Modifier.width(8.dp))
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -88,16 +95,13 @@ fun BudgetItemRow(
                 )
 
                 val remaining = item.remainingAmount
-                val remainingText = if (remaining >= 0) {
-                    "${remaining.format(baseCurrency)} $baseCurrency left"
+                val isOver = remaining < -0.01
+                val remainingText = if (isOver) {
+                    "${(-remaining).format(baseCurrency)} over"
                 } else {
-                    "${(-remaining).format(baseCurrency)} $baseCurrency over"
+                    "${remaining.format(baseCurrency)} left"
                 }
-                val remainingColor = if (remaining >= 0) {
-                    UI.colors.pureInverse.copy(alpha = 0.6f)
-                } else {
-                    Color(0xFFEF5350)
-                }
+                val remainingColor = if (isOver) Color(0xFFEF5350) else UI.colors.pureInverse.copy(alpha = 0.6f)
 
                 Text(
                     text = "${item.actualAmount.format(baseCurrency)} spent • $remainingText",
@@ -120,19 +124,26 @@ fun BudgetItemRow(
                 val paidCount = item.bills.count { it.status == BillStatus.PAID }
 
                 val (badgeText, badgeColor) = when {
-                    overdueCount > 0 -> "⚠️ $overdueCount Bill Overdue" to Color(0xFFEF5350)
-                    dueSoonCount > 0 -> "⚡ $dueSoonCount Bill Due Soon" to Color(0xFFFFA000)
-                    paidCount == item.bills.size -> "✓ ${item.bills.size} Bill(s) Paid" to Color(0xFF4CAF50)
-                    else -> "📅 ${item.bills.size} Scheduled Bill(s)" to UI.colors.pureInverse.copy(alpha = 0.6f)
+                    overdueCount > 0 -> "⚠️ $overdueCount Overdue" to Color(0xFFEF5350)
+                    dueSoonCount > 0 -> "⚡ $dueSoonCount Due Soon" to Color(0xFFFFA000)
+                    paidCount == item.bills.size -> "✓ ${item.bills.size} Paid" to Color(0xFF4CAF50)
+                    else -> "📅 ${item.bills.size} Scheduled" to UI.colors.pureInverse.copy(alpha = 0.6f)
                 }
 
-                Text(
-                    text = badgeText,
-                    style = UI.typo.c.style(
-                        color = badgeColor,
-                        fontWeight = FontWeight.SemiBold
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = UI.typo.nC.style(
+                            color = badgeColor,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -144,40 +155,55 @@ fun BudgetItemRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val percentInt = (fundProg.progressPercent * 100).toInt()
-                val targetText = "${fundProg.currentSavedAmount.format(baseCurrency)} / ${fundProg.targetAmount.format(baseCurrency)} $baseCurrency ($percentInt%)"
+                val targetText = "🎯 ${fundProg.currentSavedAmount.format(baseCurrency)} / ${fundProg.targetAmount.format(baseCurrency)} $baseCurrency ($percentInt%)"
                 Text(
-                    text = "🎯 $targetText",
+                    text = targetText,
                     style = UI.typo.c.style(
                         color = UI.colors.primary,
                         fontWeight = FontWeight.SemiBold
-                    )
+                    ),
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(Modifier.weight(1f))
-
                 if (fundProg.isFullyFunded) {
-                    Text(
-                        text = "✓ Funded",
-                        style = UI.typo.c.style(
-                            color = Color(0xFF4CAF50),
-                            fontWeight = FontWeight.Bold
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF4CAF50).copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "✓ Funded",
+                            style = UI.typo.nC.style(
+                                color = Color(0xFF4CAF50),
+                                fontWeight = FontWeight.Bold
+                            )
                         )
-                    )
+                    }
                 } else if (!fundProg.isSolvent) {
-                    Text(
-                        text = "⚠️ Cash Shortage",
-                        style = UI.typo.c.style(
-                            color = Color(0xFFFFA000),
-                            fontWeight = FontWeight.Bold
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFFFA000).copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ Shortage",
+                            style = UI.typo.nC.style(
+                                color = Color(0xFFFFA000),
+                                fontWeight = FontWeight.Bold
+                            )
                         )
-                    )
+                    }
                 } else {
                     val monthlyNeeded = fundProg.monthlyContributionNeeded
                     val monthsRemaining = fundProg.monthsRemaining
                     if (monthlyNeeded != null && monthsRemaining != null) {
                         Text(
                             text = "~${monthlyNeeded.format(baseCurrency)}/mo (${monthsRemaining}m)",
-                            style = UI.typo.c.style(
+                            style = UI.typo.nC.style(
                                 color = UI.colors.pureInverse.copy(alpha = 0.6f),
                                 fontWeight = FontWeight.Normal
                             )
@@ -191,7 +217,7 @@ fun BudgetItemRow(
             ProgressBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp),
+                    .height(5.dp),
                 percent = fundProg.progressPercent.toDouble(),
                 positiveProgress = true
             )
@@ -201,7 +227,7 @@ fun BudgetItemRow(
             ProgressBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp),
+                    .height(5.dp),
                 percent = item.progress.toDouble(),
                 positiveProgress = false
             )
