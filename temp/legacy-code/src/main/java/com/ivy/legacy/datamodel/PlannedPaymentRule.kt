@@ -19,6 +19,7 @@ data class PlannedPaymentRule(
     val accountId: UUID,
     val amount: Double = 0.0,
     val categoryId: UUID? = null,
+    val budgetItemId: UUID? = null,
     val title: String? = null,
     val description: String? = null,
 
@@ -36,6 +37,7 @@ data class PlannedPaymentRule(
         accountId = accountId,
         amount = amount,
         categoryId = categoryId,
+        budgetItemId = budgetItemId,
         title = title,
         description = description,
         isSynced = isSynced,

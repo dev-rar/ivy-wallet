@@ -12,6 +12,7 @@ fun PlannedPaymentRuleEntity.toLegacyDomain(): PlannedPaymentRule = PlannedPayme
     accountId = accountId,
     amount = amount,
     categoryId = categoryId,
+    budgetItemId = budgetItemId,
     title = title,
     description = description,
     isSynced = isSynced,

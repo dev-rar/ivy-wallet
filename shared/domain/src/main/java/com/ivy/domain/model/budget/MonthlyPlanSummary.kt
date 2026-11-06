@@ -37,7 +37,8 @@ data class MonthlyItemSummary(
     val categoryName: String? = null,
     val categoryColor: Int? = null,
     val categoryIcon: String? = null,
-    val sinkingFundProgress: SinkingFundProgress? = null
+    val sinkingFundProgress: SinkingFundProgress? = null,
+    val bills: List<BudgetItemBillSummary> = emptyList()
 ) {
     val remainingAmount: Double
         get() = plannedAmount - actualAmount
