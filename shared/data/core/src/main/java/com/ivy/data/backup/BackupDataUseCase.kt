@@ -71,6 +71,8 @@ class BackupDataUseCase @Inject constructor(
     private val transactionSplitWriter: com.ivy.data.db.dao.write.WriteTransactionSplitDao,
     private val investmentValuationDao: com.ivy.data.db.dao.read.InvestmentValuationDao,
     private val investmentValuationWriter: com.ivy.data.db.dao.write.WriteInvestmentValuationDao,
+    private val sinkingFundDao: com.ivy.data.db.dao.read.SinkingFundDao,
+    private val sinkingFundWriter: com.ivy.data.db.dao.write.WriteSinkingFundDao,
     @ApplicationContext
     private val context: Context,
     private val json: Json,
@@ -121,6 +123,7 @@ class BackupDataUseCase @Inject constructor(
             val budgetItems = async { monthlyBudgetDao.findAllItems() }
             val transactionSplits = async { transactionSplitDao.findAll() }
             val investmentValuations = async { investmentValuationDao.findAll() }
+            val sinkingFunds = async { sinkingFundDao.findAll() }
 
             val completeData = IvyWalletCompleteData(
                 accounts = accounts.await(),
@@ -138,7 +141,8 @@ class BackupDataUseCase @Inject constructor(
                 budgetGroups = budgetGroups.await(),
                 budgetItems = budgetItems.await(),
                 transactionSplits = transactionSplits.await(),
-                investmentValuations = investmentValuations.await()
+                investmentValuations = investmentValuations.await(),
+                sinkingFunds = sinkingFunds.await()
             )
 
             json.encodeToString(completeData)
@@ -300,6 +304,7 @@ class BackupDataUseCase @Inject constructor(
             val monthlyItems = async { monthlyBudgetWriter.saveItems(completeData.budgetItems) }
             val transactionSplits = async { transactionSplitWriter.saveAll(completeData.transactionSplits) }
             val investmentValuations = async { investmentValuationWriter.saveAll(completeData.investmentValuations) }
+            val sinkingFunds = async { sinkingFundWriter.saveAll(completeData.sinkingFunds) }
 
             val plannedPayments =
                 async { plannedPaymentRuleWriter.saveMany(completeData.plannedPaymentRules) }
@@ -338,6 +343,9 @@ class BackupDataUseCase @Inject constructor(
             monthlyPlans.await()
             monthlyGroups.await()
             monthlyItems.await()
+            transactionSplits.await()
+            investmentValuations.await()
+            sinkingFunds.await()
 
             onProgress(0.9)
         }

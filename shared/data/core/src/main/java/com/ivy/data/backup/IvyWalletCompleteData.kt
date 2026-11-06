@@ -12,6 +12,7 @@ import com.ivy.data.db.entity.LoanRecordEntity
 import com.ivy.data.db.entity.MonthlyBudgetPlanEntity
 import com.ivy.data.db.entity.PlannedPaymentRuleEntity
 import com.ivy.data.db.entity.SettingsEntity
+import com.ivy.data.db.entity.SinkingFundEntity
 import com.ivy.data.db.entity.TagAssociationEntity
 import com.ivy.data.db.entity.TagEntity
 import com.ivy.data.db.entity.TransactionEntity
@@ -54,5 +55,7 @@ data class IvyWalletCompleteData(
     @SerialName("transactionSplits")
     val transactionSplits: List<TransactionSplitEntity> = emptyList(),
     @SerialName("investmentValuations")
-    val investmentValuations: List<InvestmentValuationEntity> = emptyList()
+    val investmentValuations: List<InvestmentValuationEntity> = emptyList(),
+    @SerialName("sinkingFunds")
+    val sinkingFunds: List<SinkingFundEntity> = emptyList()
 )

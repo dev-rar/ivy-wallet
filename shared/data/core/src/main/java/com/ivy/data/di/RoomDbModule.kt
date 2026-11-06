@@ -12,6 +12,7 @@ import com.ivy.data.db.dao.read.LoanRecordDao
 import com.ivy.data.db.dao.read.MonthlyBudgetDao
 import com.ivy.data.db.dao.read.PlannedPaymentRuleDao
 import com.ivy.data.db.dao.read.SettingsDao
+import com.ivy.data.db.dao.read.SinkingFundDao
 import com.ivy.data.db.dao.read.TagDao
 import com.ivy.data.db.dao.read.TagAssociationDao
 import com.ivy.data.db.dao.read.TransactionDao
@@ -27,6 +28,7 @@ import com.ivy.data.db.dao.write.WriteLoanRecordDao
 import com.ivy.data.db.dao.write.WriteMonthlyBudgetDao
 import com.ivy.data.db.dao.write.WritePlannedPaymentRuleDao
 import com.ivy.data.db.dao.write.WriteSettingsDao
+import com.ivy.data.db.dao.write.WriteSinkingFundDao
 import com.ivy.data.db.dao.write.WriteTagDao
 import com.ivy.data.db.dao.write.WriteTagAssociationDao
 import com.ivy.data.db.dao.write.WriteTransactionDao
@@ -197,5 +199,15 @@ object RoomDbModule {
     @Provides
     fun provideWriteInvestmentValuationDao(db: IvyRoomDatabase): WriteInvestmentValuationDao {
         return db.writeInvestmentValuationDao
+    }
+
+    @Provides
+    fun provideSinkingFundDao(db: IvyRoomDatabase): SinkingFundDao {
+        return db.sinkingFundDao
+    }
+
+    @Provides
+    fun provideWriteSinkingFundDao(db: IvyRoomDatabase): WriteSinkingFundDao {
+        return db.writeSinkingFundDao
     }
 }

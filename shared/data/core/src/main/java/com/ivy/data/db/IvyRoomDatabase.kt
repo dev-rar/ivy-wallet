@@ -18,6 +18,7 @@ import com.ivy.data.db.dao.read.LoanRecordDao
 import com.ivy.data.db.dao.read.MonthlyBudgetDao
 import com.ivy.data.db.dao.read.PlannedPaymentRuleDao
 import com.ivy.data.db.dao.read.SettingsDao
+import com.ivy.data.db.dao.read.SinkingFundDao
 import com.ivy.data.db.dao.read.TagDao
 import com.ivy.data.db.dao.read.TagAssociationDao
 import com.ivy.data.db.dao.read.TransactionDao
@@ -33,6 +34,7 @@ import com.ivy.data.db.dao.write.WriteLoanRecordDao
 import com.ivy.data.db.dao.write.WriteMonthlyBudgetDao
 import com.ivy.data.db.dao.write.WritePlannedPaymentRuleDao
 import com.ivy.data.db.dao.write.WriteSettingsDao
+import com.ivy.data.db.dao.write.WriteSinkingFundDao
 import com.ivy.data.db.dao.write.WriteTagDao
 import com.ivy.data.db.dao.write.WriteTagAssociationDao
 import com.ivy.data.db.dao.write.WriteTransactionDao
@@ -49,6 +51,7 @@ import com.ivy.data.db.entity.LoanRecordEntity
 import com.ivy.data.db.entity.MonthlyBudgetPlanEntity
 import com.ivy.data.db.entity.PlannedPaymentRuleEntity
 import com.ivy.data.db.entity.SettingsEntity
+import com.ivy.data.db.entity.SinkingFundEntity
 import com.ivy.data.db.entity.TagEntity
 import com.ivy.data.db.entity.TagAssociationEntity
 import com.ivy.data.db.entity.TransactionEntity
@@ -75,6 +78,7 @@ import com.ivy.data.db.migration.Migration129to130_LoanIncludeNote
 import com.ivy.data.db.migration.Migration130to131_BudgetingFoundations
 import com.ivy.data.db.migration.Migration131to132_TransactionSplits
 import com.ivy.data.db.migration.Migration132to133_InvestmentsAndNetWorth
+import com.ivy.data.db.migration.Migration133to134_SinkingFunds
 import com.ivy.domain.db.migration.Migration116to117_SalteEdgeIntgration
 import com.ivy.domain.db.migration.Migration117to118_Budgets
 import com.ivy.domain.db.migration.Migration118to119_Loans
@@ -90,7 +94,7 @@ import com.ivy.domain.db.migration.Migration125to126_Tags
         UserEntity::class, ExchangeRateEntity::class, BudgetEntity::class,
         LoanEntity::class, LoanRecordEntity::class, TagEntity::class, TagAssociationEntity::class,
         MonthlyBudgetPlanEntity::class, BudgetGroupEntity::class, BudgetItemEntity::class,
-        TransactionSplitEntity::class, InvestmentValuationEntity::class
+        TransactionSplitEntity::class, InvestmentValuationEntity::class, SinkingFundEntity::class
     ],
     autoMigrations = [
         AutoMigration(
@@ -99,7 +103,7 @@ import com.ivy.domain.db.migration.Migration125to126_Tags
             spec = IvyRoomDatabase.DeleteSEMigration::class
         )
     ],
-    version = 133,
+    version = 134,
     exportSchema = true
 )
 @TypeConverters(RoomTypeConverters::class)
@@ -119,6 +123,7 @@ abstract class IvyRoomDatabase : RoomDatabase() {
     abstract val monthlyBudgetDao: MonthlyBudgetDao
     abstract val transactionSplitDao: TransactionSplitDao
     abstract val investmentValuationDao: InvestmentValuationDao
+    abstract val sinkingFundDao: SinkingFundDao
 
     abstract val writeAccountDao: WriteAccountDao
     abstract val writeTransactionDao: WriteTransactionDao
@@ -134,6 +139,7 @@ abstract class IvyRoomDatabase : RoomDatabase() {
     abstract val writeMonthlyBudgetDao: WriteMonthlyBudgetDao
     abstract val writeTransactionSplitDao: WriteTransactionSplitDao
     abstract val writeInvestmentValuationDao: WriteInvestmentValuationDao
+    abstract val writeSinkingFundDao: WriteSinkingFundDao
 
     companion object {
         const val DB_NAME = "ivywallet.db"
@@ -165,7 +171,8 @@ abstract class IvyRoomDatabase : RoomDatabase() {
             Migration129to130_LoanIncludeNote(),
             Migration130to131_BudgetingFoundations(),
             Migration131to132_TransactionSplits(),
-            Migration132to133_InvestmentsAndNetWorth()
+            Migration132to133_InvestmentsAndNetWorth(),
+            Migration133to134_SinkingFunds()
         )
 
         @Suppress("SpreadOperator")
