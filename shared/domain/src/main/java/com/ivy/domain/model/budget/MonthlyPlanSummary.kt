@@ -13,7 +13,8 @@ data class MonthlyPlanSummary(
     val totalIncome: Double,
     val totalAllocated: Double,
     val leftToAssign: Double,
-    val groups: List<MonthlyGroupSummary>
+    val groups: List<MonthlyGroupSummary>,
+    val isClosed: Boolean = false
 )
 
 data class MonthlyGroupSummary(

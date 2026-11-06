@@ -156,7 +156,8 @@ class GetMonthlyPlanSummaryUseCase @Inject constructor(
                 totalIncome = totalIncome,
                 totalAllocated = totalAllocated,
                 leftToAssign = leftToAssign,
-                groups = groupSummaries
+                groups = groupSummaries,
+                isClosed = plan.isClosed
             )
         }
 }
