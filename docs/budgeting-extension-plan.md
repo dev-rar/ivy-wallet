@@ -171,15 +171,15 @@ This document specifies the architecture, data models, financial rules, phased r
 
 - [x] **Phase 0 — Audit and Repository-Specific Plan** `Complete`
 - [x] **Phase 1 — Compatibility and Data Foundations** `Complete`
-- [ ] **Phase 2 — Monthly Zero-Based Budgeting** `Not started`
-- [ ] **Phase 3 — Transaction Assignments and Splits** `Not started`
-- [ ] **Phase 4 — Investment Accounts, Debts, and Net Worth** `Not started`
-- [ ] **Phase 5 — Sinking Funds and Savings Goals** `Not started`
-- [ ] **Phase 6 — Bills, Recurrence, and Reminders** `Not started`
-- [ ] **Phase 7 — Paycheck and Cash-Flow Planning** `Not started`
-- [x] **Phase 8 — Month Close and Carryover** `Completed`
-- [x] **Phase 9 — Reports and Exports** `Completed`
-- [ ] **Phase 10 — Statement Imports and Matching** `Not started`
+- [x] **Phase 2 — Monthly Zero-Based Budgeting** `Complete`
+- [x] **Phase 3 — Transaction Assignments and Splits** `Complete`
+- [x] **Phase 4 — Investment Accounts, Debts, and Net Worth** `Complete`
+- [x] **Phase 5 — Sinking Funds and Savings Goals** `Complete`
+- [x] **Phase 6 — Bills, Recurrence, and Reminders** `Complete`
+- [x] **Phase 7 — Paycheck and Cash-Flow Planning** `Complete`
+- [x] **Phase 8 — Month Close and Carryover** `Complete`
+- [x] **Phase 9 — Reports and Exports** `Complete`
+- [x] **Phase 10 — Statement Imports and Matching** `Complete`
 - [ ] **Phase 11 — Complete Daily-Use Verification** `Not started`
 
 ---
@@ -526,5 +526,25 @@ This document specifies the architecture, data models, financial rules, phased r
 - **Build Verification**:
   - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
   - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
+## 18. Verification Results (Phase 10 — Statement Imports and Matching)
+
+- **Domain Models & Use Cases**:
+  - Domain models `BankStatementProfile` (`GENERIC`, `MEEZAN_BANK`, `HBL`, `SADAPAY`, `NAYAPAY`) and `StatementTransaction`.
+  - `ParseBankStatementUseCase`: CSV parser supporting standard formats and regional Pakistani banking statement exports (Meezan, HBL, SadaPay, NayaPay). Extracts dates, descriptions, references, amounts, and transaction types.
+  - `DetectDuplicateTransactionUseCase`: Checks 7-day proximity, identical amounts, and matching descriptions against existing transactions in Room DB.
+  - `SuggestBudgetItemUseCase`: Tokenizes descriptions and performs case-insensitive smart keyword/item name matching against active monthly budget items.
+  - `ImportStatementTransactionsUseCase`: Batch persists non-duplicate imported transactions and auto-assigns matched budget items.
+  - Unit tests passing in `ParseBankStatementUseCaseTest` and `ImportStatementTransactionsUseCaseTest`.
+- **UI Architecture in Budgets**:
+  - `ImportStatementModal`: Profile selector (Generic, Meezan Bank, HBL, SadaPay, NayaPay), Target Account picker, CSV text input area, and interactive parsed transaction review preview.
+  - Preview displays parsed status, date, title, formatted amount, matched budget item chip, and duplicate detection badges (`⚠️ Duplicate` / `✓ New`).
+  - `ZeroBasedSummaryBanner`: Added "Import Statement" action button.
+  - Integrated with `BudgetViewModel` (`BudgetScreenEvent.ImportStatementTransactions`, `parseStatement`).
+- **Build Verification**:
+  - `./gradlew.bat :shared:domain:testDebugUnitTest` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:compileDebugKotlin` -> BUILD SUCCESSFUL.
+  - `./gradlew.bat :feature:budgets:testDebugUnitTest` -> BUILD SUCCESSFUL.
+
 
 
