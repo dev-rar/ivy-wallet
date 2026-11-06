@@ -11,6 +11,9 @@ data class EditBudgetItemModalData(
     val initialName: String = "",
     val initialPlannedAmount: Double = 0.0,
     val initialCategoryId: UUID? = null,
-    val initialItemType: BudgetItemType = BudgetItemType.STANDARD
+    val initialItemType: BudgetItemType = BudgetItemType.STANDARD,
+    val initialTargetAmount: Double = 0.0,
+    val initialOpeningBalance: Double = 0.0,
+    val initialNotes: String? = null
 )
 

@@ -24,8 +24,10 @@ import com.ivy.data.model.Transfer
 import com.ivy.data.model.budget.BudgetGroupType
 import com.ivy.data.model.budget.BudgetItemType
 import com.ivy.data.model.budget.BudgetPeriod
+import com.ivy.data.model.budget.SinkingFund
 import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.MonthlyBudgetRepository
+import com.ivy.data.repository.SinkingFundRepository
 import com.ivy.data.temp.migration.getAccountId
 import com.ivy.data.temp.migration.getValue
 import com.ivy.domain.model.budget.MonthlyPlanSummary
@@ -78,6 +80,7 @@ class BudgetViewModel @Inject constructor(
     private val copyPreviousMonthPlanUseCase: CopyPreviousMonthPlanUseCase,
     private val saveBudgetItemUseCase: SaveBudgetItemUseCase,
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
+    private val sinkingFundRepository: SinkingFundRepository,
 ) : ComposeViewModel<BudgetScreenState, BudgetScreenEvent>() {
 
     private val baseCurrency = mutableStateOf("")
@@ -243,8 +246,9 @@ class BudgetViewModel @Inject constructor(
 
             is BudgetScreenEvent.OnSaveBudgetItem -> {
                 viewModelScope.launch {
+                    val itemId = event.itemId ?: UUID.randomUUID()
                     val entity = BudgetItemEntity(
-                        id = event.itemId ?: UUID.randomUUID(),
+                        id = itemId,
                         groupId = event.groupId,
                         planPeriod = event.period.value,
                         name = event.name,
@@ -253,12 +257,27 @@ class BudgetViewModel @Inject constructor(
                         categoryId = event.categoryId
                     )
                     saveBudgetItemUseCase.save(entity)
+
+                    if (event.itemType == BudgetItemType.SINKING_FUND || event.targetAmount > 0.0) {
+                        val existingFund = sinkingFundRepository.getSinkingFund(itemId)
+                        val fund = SinkingFund(
+                            id = existingFund?.id ?: UUID.randomUUID(),
+                            budgetItemId = itemId,
+                            targetAmount = event.targetAmount,
+                            targetDate = existingFund?.targetDate,
+                            openingBalance = event.openingBalance,
+                            notes = event.notes ?: existingFund?.notes
+                        )
+                        sinkingFundRepository.saveSinkingFund(fund)
+                    }
+
                     loadMonthlyPlan(event.period)
                 }
             }
 
             is BudgetScreenEvent.OnDeleteBudgetItem -> {
                 viewModelScope.launch {
+                    sinkingFundRepository.deleteByBudgetItemId(event.itemId)
                     saveBudgetItemUseCase.delete(event.itemId)
                     loadMonthlyPlan(monthlyPeriod.value)
                 }

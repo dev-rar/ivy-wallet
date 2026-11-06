@@ -108,14 +108,75 @@ fun BudgetItemRow(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        val fundProg = item.sinkingFundProgress
+        if (fundProg != null) {
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val percentInt = (fundProg.progressPercent * 100).toInt()
+                val targetText = "${fundProg.currentSavedAmount.format(baseCurrency)} / ${fundProg.targetAmount.format(baseCurrency)} $baseCurrency ($percentInt%)"
+                Text(
+                    text = "🎯 $targetText",
+                    style = UI.typo.c.style(
+                        color = UI.colors.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
 
-        ProgressBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp),
-            percent = item.progress.toDouble(),
-            positiveProgress = false
-        )
+                Spacer(Modifier.weight(1f))
+
+                if (fundProg.isFullyFunded) {
+                    Text(
+                        text = "✓ Funded",
+                        style = UI.typo.c.style(
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                } else if (!fundProg.isSolvent) {
+                    Text(
+                        text = "⚠️ Cash Shortage",
+                        style = UI.typo.c.style(
+                            color = Color(0xFFFFA000),
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                } else {
+                    val monthlyNeeded = fundProg.monthlyContributionNeeded
+                    val monthsRemaining = fundProg.monthsRemaining
+                    if (monthlyNeeded != null && monthsRemaining != null) {
+                        Text(
+                            text = "~${monthlyNeeded.format(baseCurrency)}/mo (${monthsRemaining}m)",
+                            style = UI.typo.c.style(
+                                color = UI.colors.pureInverse.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Normal
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            ProgressBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                percent = fundProg.progressPercent.toDouble(),
+                positiveProgress = true
+            )
+        } else {
+            Spacer(Modifier.height(8.dp))
+
+            ProgressBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                percent = item.progress.toDouble(),
+                positiveProgress = false
+            )
+        }
     }
 }

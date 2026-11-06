@@ -1,5 +1,9 @@
 package com.ivy.budgets.monthly
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ivy.budgets.model.EditBudgetItemModalData
@@ -53,7 +58,10 @@ fun BoxWithConstraintsScope.EditBudgetItemModal(
         name: String,
         amount: Double,
         itemType: BudgetItemType,
-        categoryId: UUID?
+        categoryId: UUID?,
+        targetAmount: Double,
+        openingBalance: Double,
+        notes: String?
     ) -> Unit,
     onDelete: (itemId: UUID) -> Unit,
     dismiss: () -> Unit
@@ -72,8 +80,19 @@ fun BoxWithConstraintsScope.EditBudgetItemModal(
     var selectedCategoryId by remember(modal) {
         mutableStateOf(modal.initialCategoryId)
     }
+    var isSinkingFund by remember(modal) {
+        mutableStateOf(modal.initialItemType == BudgetItemType.SINKING_FUND || modal.initialTargetAmount > 0.0)
+    }
+    var targetAmount by remember(modal) {
+        mutableDoubleStateOf(modal.initialTargetAmount)
+    }
+    var openingBalance by remember(modal) {
+        mutableDoubleStateOf(modal.initialOpeningBalance)
+    }
 
     var amountModalVisible by remember(modal) { mutableStateOf(false) }
+    var targetAmountModalVisible by remember(modal) { mutableStateOf(false) }
+    var openingBalanceModalVisible by remember(modal) { mutableStateOf(false) }
     var deleteModalVisible by remember(modal) { mutableStateOf(false) }
 
     IvyModal(
@@ -91,8 +110,11 @@ fun BoxWithConstraintsScope.EditBudgetItemModal(
                     modal.period,
                     nameTextFieldValue.text.trim(),
                     amount,
-                    modal.initialItemType,
-                    selectedCategoryId
+                    if (isSinkingFund) BudgetItemType.SINKING_FUND else BudgetItemType.STANDARD,
+                    selectedCategoryId,
+                    if (isSinkingFund) targetAmount else 0.0,
+                    if (isSinkingFund) openingBalance else 0.0,
+                    modal.initialNotes
                 )
                 dismiss()
             }
@@ -125,12 +147,79 @@ fun BoxWithConstraintsScope.EditBudgetItemModal(
 
         Spacer(Modifier.height(16.dp))
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(UI.shapes.r2)
+                    .background(if (!isSinkingFund) UI.colors.primary else UI.colors.medium)
+                    .clickable { isSinkingFund = false }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Standard Expense",
+                    style = UI.typo.b2.style(
+                        color = if (!isSinkingFund) UI.colors.pure else UI.colors.pureInverse,
+                        fontWeight = if (!isSinkingFund) FontWeight.Bold else FontWeight.Normal
+                    )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(UI.shapes.r2)
+                    .background(if (isSinkingFund) UI.colors.primary else UI.colors.medium)
+                    .clickable { isSinkingFund = true }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🎯 Sinking Fund",
+                    style = UI.typo.b2.style(
+                        color = if (isSinkingFund) UI.colors.pure else UI.colors.pureInverse,
+                        fontWeight = if (isSinkingFund) FontWeight.Bold else FontWeight.Normal
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
         ModalAmountSection(
-            label = "Planned Amount",
+            label = if (isSinkingFund) "Monthly Planned Contribution" else "Planned Amount",
             amount = amount,
             currency = baseCurrency
         ) {
             amountModalVisible = true
+        }
+
+        if (isSinkingFund) {
+            Spacer(Modifier.height(12.dp))
+
+            ModalAmountSection(
+                label = "Total Goal Target",
+                amount = targetAmount,
+                currency = baseCurrency
+            ) {
+                targetAmountModalVisible = true
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            ModalAmountSection(
+                label = "Opening / Saved Balance",
+                amount = openingBalance,
+                currency = baseCurrency
+            ) {
+                openingBalanceModalVisible = true
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -184,6 +273,26 @@ fun BoxWithConstraintsScope.EditBudgetItemModal(
         dismiss = { amountModalVisible = false }
     ) {
         amount = it
+    }
+
+    AmountModal(
+        id = remember(modal) { UUID.randomUUID() },
+        visible = targetAmountModalVisible,
+        currency = baseCurrency,
+        initialAmount = targetAmount,
+        dismiss = { targetAmountModalVisible = false }
+    ) {
+        targetAmount = it
+    }
+
+    AmountModal(
+        id = remember(modal) { UUID.randomUUID() },
+        visible = openingBalanceModalVisible,
+        currency = baseCurrency,
+        initialAmount = openingBalance,
+        dismiss = { openingBalanceModalVisible = false }
+    ) {
+        openingBalance = it
     }
 
     DeleteModal(

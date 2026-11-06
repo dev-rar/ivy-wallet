@@ -22,6 +22,7 @@ class GetMonthlyPlanSummaryUseCase @Inject constructor(
     private val transactionDao: TransactionDao,
     private val splitRepository: TransactionSplitRepository,
     private val categoryRepository: CategoryRepository,
+    private val getSinkingFundProgressUseCase: GetSinkingFundProgressUseCase,
     private val dispatchersProvider: DispatchersProvider,
 ) {
     suspend operator fun invoke(period: BudgetPeriod): MonthlyPlanSummary =
@@ -30,6 +31,9 @@ class GetMonthlyPlanSummaryUseCase @Inject constructor(
             val groups = monthlyBudgetRepository.findGroups(period)
             val items = monthlyBudgetRepository.findItems(period)
             val categories = categoryRepository.findAll().associateBy { it.id.value }
+            val sinkingFunds = runCatching { getSinkingFundProgressUseCase.getAll(period) }
+                .getOrDefault(emptyList())
+                .associateBy { it.budgetItemId }
 
             val startInstant = period.startInstant()
             val endInstant = period.endInstant()
@@ -112,7 +116,8 @@ class GetMonthlyPlanSummaryUseCase @Inject constructor(
                         categoryId = item.categoryId?.let { CategoryId(it) },
                         categoryName = cat?.name?.value,
                         categoryColor = cat?.color?.value,
-                        categoryIcon = cat?.icon?.id
+                        categoryIcon = cat?.icon?.id,
+                        sinkingFundProgress = sinkingFunds[item.id]
                     )
                 }
 

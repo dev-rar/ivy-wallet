@@ -125,7 +125,10 @@ private fun BoxWithConstraintsScope.UI(
                                 initialName = item.name,
                                 initialPlannedAmount = item.plannedAmount,
                                 initialCategoryId = item.categoryId?.value,
-                                initialItemType = item.itemType
+                                initialItemType = item.itemType,
+                                initialTargetAmount = item.sinkingFundProgress?.targetAmount ?: 0.0,
+                                initialOpeningBalance = item.sinkingFundProgress?.sinkingFund?.openingBalance ?: 0.0,
+                                initialNotes = item.sinkingFundProgress?.sinkingFund?.notes
                             )
                         )
                     )
@@ -237,7 +240,7 @@ private fun BoxWithConstraintsScope.UI(
         modal = state.editItemModalData,
         categories = state.categories,
         baseCurrency = state.baseCurrency,
-        onSave = { itemId, groupId, period, name, amount, itemType, categoryId ->
+        onSave = { itemId, groupId, period, name, amount, itemType, categoryId, targetAmount, openingBalance, notes ->
             onEvent(
                 BudgetScreenEvent.OnSaveBudgetItem(
                     itemId = itemId,
@@ -246,7 +249,10 @@ private fun BoxWithConstraintsScope.UI(
                     name = name,
                     plannedAmount = amount,
                     itemType = itemType,
-                    categoryId = categoryId
+                    categoryId = categoryId,
+                    targetAmount = targetAmount,
+                    openingBalance = openingBalance,
+                    notes = notes
                 )
             )
         },

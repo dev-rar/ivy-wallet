@@ -32,7 +32,10 @@ sealed interface BudgetScreenEvent {
         val name: String,
         val plannedAmount: Double,
         val itemType: BudgetItemType,
-        val categoryId: UUID?
+        val categoryId: UUID?,
+        val targetAmount: Double = 0.0,
+        val openingBalance: Double = 0.0,
+        val notes: String? = null
     ) : BudgetScreenEvent
     data class OnDeleteBudgetItem(val itemId: UUID) : BudgetScreenEvent
     data class OnAddBudgetGroup(val period: BudgetPeriod, val name: String, val groupType: BudgetGroupType) : BudgetScreenEvent

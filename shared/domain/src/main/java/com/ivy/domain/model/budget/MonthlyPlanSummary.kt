@@ -36,7 +36,8 @@ data class MonthlyItemSummary(
     val categoryId: CategoryId?,
     val categoryName: String? = null,
     val categoryColor: Int? = null,
-    val categoryIcon: String? = null
+    val categoryIcon: String? = null,
+    val sinkingFundProgress: SinkingFundProgress? = null
 ) {
     val remainingAmount: Double
         get() = plannedAmount - actualAmount
