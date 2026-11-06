@@ -6,13 +6,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Suppress("ClassName")
 class Migration131to132_TransactionSplits : Migration(131, 132) {
     override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `transaction_splits`")
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS `transaction_splits` (
-                `id` BLOB NOT NULL,
-                `transactionId` BLOB NOT NULL,
-                `budgetItemId` BLOB,
-                `categoryId` BLOB,
+                `id` TEXT NOT NULL,
+                `transactionId` TEXT NOT NULL,
+                `budgetItemId` TEXT,
+                `categoryId` TEXT,
                 `amount` REAL NOT NULL,
                 `note` TEXT,
                 `orderNum` REAL NOT NULL,

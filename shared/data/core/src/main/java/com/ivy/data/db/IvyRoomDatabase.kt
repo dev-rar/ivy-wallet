@@ -80,6 +80,7 @@ import com.ivy.data.db.migration.Migration131to132_TransactionSplits
 import com.ivy.data.db.migration.Migration132to133_InvestmentsAndNetWorth
 import com.ivy.data.db.migration.Migration133to134_SinkingFunds
 import com.ivy.data.db.migration.Migration134to135_PlannedPaymentBudgetItem
+import com.ivy.data.db.migration.Migration135to136_FixSplits
 import com.ivy.domain.db.migration.Migration116to117_SalteEdgeIntgration
 import com.ivy.domain.db.migration.Migration117to118_Budgets
 import com.ivy.domain.db.migration.Migration118to119_Loans
@@ -104,7 +105,7 @@ import com.ivy.domain.db.migration.Migration125to126_Tags
             spec = IvyRoomDatabase.DeleteSEMigration::class
         )
     ],
-    version = 135,
+    version = 136,
     exportSchema = true
 )
 @TypeConverters(RoomTypeConverters::class)
@@ -174,7 +175,8 @@ abstract class IvyRoomDatabase : RoomDatabase() {
             Migration131to132_TransactionSplits(),
             Migration132to133_InvestmentsAndNetWorth(),
             Migration133to134_SinkingFunds(),
-            Migration134to135_PlannedPaymentBudgetItem()
+            Migration134to135_PlannedPaymentBudgetItem(),
+            Migration135to136_FixSplits()
         )
 
         @Suppress("SpreadOperator")
@@ -186,6 +188,7 @@ abstract class IvyRoomDatabase : RoomDatabase() {
                     DB_NAME
                 )
                 .addMigrations(*migrations())
+                .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
         }
     }
