@@ -5,6 +5,7 @@ import com.ivy.budgets.model.DisplayBudget
 import com.ivy.budgets.model.EditBudgetItemModalData
 import com.ivy.data.model.Category
 import com.ivy.data.model.budget.BudgetPeriod
+import com.ivy.domain.model.budget.MonthCloseSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
 import com.ivy.domain.model.cashflow.CashFlowProjection
 import com.ivy.legacy.data.model.FromToTimeRange
@@ -29,5 +30,7 @@ data class BudgetScreenState(
     val monthlyPlan: MonthlyPlanSummary? = null,
     val editItemModalData: EditBudgetItemModalData? = null,
     val editIncomeModalVisible: Boolean = false,
-    val cashFlowProjection: CashFlowProjection? = null
+    val cashFlowProjection: CashFlowProjection? = null,
+    val closeMonthModalVisible: Boolean = false,
+    val monthCloseSummary: MonthCloseSummary? = null
 )

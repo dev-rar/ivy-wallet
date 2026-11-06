@@ -30,8 +30,10 @@ import com.ivy.data.repository.MonthlyBudgetRepository
 import com.ivy.data.repository.SinkingFundRepository
 import com.ivy.data.temp.migration.getAccountId
 import com.ivy.data.temp.migration.getValue
+import com.ivy.domain.model.budget.MonthCloseSummary
 import com.ivy.domain.model.budget.MonthlyPlanSummary
 import com.ivy.domain.model.cashflow.CashFlowProjection
+import com.ivy.domain.usecase.budget.CloseMonthPlanUseCase
 import com.ivy.domain.usecase.budget.CopyPreviousMonthPlanUseCase
 import com.ivy.domain.usecase.budget.GetMonthlyPlanSummaryUseCase
 import com.ivy.domain.usecase.budget.SaveBudgetItemUseCase
@@ -84,6 +86,7 @@ class BudgetViewModel @Inject constructor(
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
     private val sinkingFundRepository: SinkingFundRepository,
     private val projectCashFlowUseCase: ProjectCashFlowUseCase,
+    private val closeMonthPlanUseCase: CloseMonthPlanUseCase,
 ) : ComposeViewModel<BudgetScreenState, BudgetScreenEvent>() {
 
     private val baseCurrency = mutableStateOf("")
@@ -104,6 +107,8 @@ class BudgetViewModel @Inject constructor(
     private val editItemModalData = mutableStateOf<EditBudgetItemModalData?>(null)
     private val editIncomeModalVisible = mutableStateOf(false)
     private val cashFlowProjection = mutableStateOf<CashFlowProjection?>(null)
+    private val closeMonthModalVisible = mutableStateOf(false)
+    private val monthCloseSummary = mutableStateOf<MonthCloseSummary?>(null)
 
     @Composable
     override fun uiState(): BudgetScreenState {
@@ -128,7 +133,9 @@ class BudgetViewModel @Inject constructor(
             monthlyPlan = monthlyPlan.value,
             editItemModalData = editItemModalData.value,
             editIncomeModalVisible = editIncomeModalVisible.value,
-            cashFlowProjection = cashFlowProjection.value
+            cashFlowProjection = cashFlowProjection.value,
+            closeMonthModalVisible = closeMonthModalVisible.value,
+            monthCloseSummary = monthCloseSummary.value
         )
     }
 
@@ -304,6 +311,31 @@ class BudgetViewModel @Inject constructor(
             is BudgetScreenEvent.OnDeleteBudgetGroup -> {
                 viewModelScope.launch {
                     monthlyBudgetRepository.deleteGroup(event.groupId)
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+
+            is BudgetScreenEvent.OnOpenCloseMonthModal -> {
+                viewModelScope.launch {
+                    if (event.visible) {
+                        monthCloseSummary.value = runCatching {
+                            closeMonthPlanUseCase.getSummary(monthlyPeriod.value)
+                        }.getOrNull()
+                    }
+                    closeMonthModalVisible.value = event.visible
+                }
+            }
+
+            is BudgetScreenEvent.OnCloseMonth -> {
+                viewModelScope.launch {
+                    closeMonthPlanUseCase.closeMonth(monthlyPeriod.value, event.rolloverSurplus)
+                    loadMonthlyPlan(monthlyPeriod.value)
+                }
+            }
+
+            is BudgetScreenEvent.OnReopenMonth -> {
+                viewModelScope.launch {
+                    closeMonthPlanUseCase.reopenMonth(monthlyPeriod.value)
                     loadMonthlyPlan(monthlyPeriod.value)
                 }
             }

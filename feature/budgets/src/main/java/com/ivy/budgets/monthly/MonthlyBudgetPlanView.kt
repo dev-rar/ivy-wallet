@@ -24,6 +24,7 @@ fun MonthlyBudgetPlanView(
     onChangePeriod: (BudgetPeriod) -> Unit,
     onCopyPreviousMonth: () -> Unit,
     onEditIncome: () -> Unit,
+    onReviewMonth: () -> Unit = {},
     onAddItem: (groupId: UUID) -> Unit,
     onEditItem: (item: MonthlyItemSummary) -> Unit,
     modifier: Modifier = Modifier
@@ -46,7 +47,8 @@ fun MonthlyBudgetPlanView(
             ZeroBasedSummaryBanner(
                 plan = plan,
                 baseCurrency = baseCurrency,
-                onEditIncome = onEditIncome
+                onEditIncome = onEditIncome,
+                onReviewMonth = onReviewMonth
             )
 
             if (cashFlowProjection != null) {

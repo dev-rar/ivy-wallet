@@ -40,4 +40,7 @@ sealed interface BudgetScreenEvent {
     data class OnDeleteBudgetItem(val itemId: UUID) : BudgetScreenEvent
     data class OnAddBudgetGroup(val period: BudgetPeriod, val name: String, val groupType: BudgetGroupType) : BudgetScreenEvent
     data class OnDeleteBudgetGroup(val groupId: UUID) : BudgetScreenEvent
+    data class OnOpenCloseMonthModal(val visible: Boolean) : BudgetScreenEvent
+    data class OnCloseMonth(val rolloverSurplus: Boolean) : BudgetScreenEvent
+    data object OnReopenMonth : BudgetScreenEvent
 }

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.ivy.budgets.model.BudgetTab
 import com.ivy.budgets.model.DisplayBudget
 import com.ivy.budgets.model.EditBudgetItemModalData
+import com.ivy.budgets.monthly.CloseMonthModal
 import com.ivy.budgets.monthly.EditBudgetItemModal
 import com.ivy.budgets.monthly.EditIncomeModal
 import com.ivy.budgets.monthly.MonthlyBudgetPlanView
@@ -106,6 +107,7 @@ private fun BoxWithConstraintsScope.UI(
                 onChangePeriod = { onEvent(BudgetScreenEvent.OnChangePeriod(it)) },
                 onCopyPreviousMonth = { onEvent(BudgetScreenEvent.OnCopyPreviousMonth) },
                 onEditIncome = { onEvent(BudgetScreenEvent.OnOpenEditIncomeModal(true)) },
+                onReviewMonth = { onEvent(BudgetScreenEvent.OnOpenCloseMonthModal(true)) },
                 onAddItem = { groupId ->
                     onEvent(
                         BudgetScreenEvent.OnOpenEditItemModal(
@@ -275,6 +277,21 @@ private fun BoxWithConstraintsScope.UI(
         },
         dismiss = {
             onEvent(BudgetScreenEvent.OnOpenEditIncomeModal(false))
+        }
+    )
+
+    CloseMonthModal(
+        visible = state.closeMonthModalVisible,
+        summary = state.monthCloseSummary,
+        baseCurrency = state.baseCurrency,
+        onCloseMonth = { rollover ->
+            onEvent(BudgetScreenEvent.OnCloseMonth(rollover))
+        },
+        onReopenMonth = {
+            onEvent(BudgetScreenEvent.OnReopenMonth)
+        },
+        dismiss = {
+            onEvent(BudgetScreenEvent.OnOpenCloseMonthModal(false))
         }
     )
 }
