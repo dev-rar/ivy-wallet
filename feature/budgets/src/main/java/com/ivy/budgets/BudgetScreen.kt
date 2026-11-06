@@ -102,6 +102,7 @@ private fun BoxWithConstraintsScope.UI(
                 plan = state.monthlyPlan,
                 period = state.monthlyPeriod,
                 baseCurrency = state.baseCurrency,
+                cashFlowProjection = state.cashFlowProjection,
                 onChangePeriod = { onEvent(BudgetScreenEvent.OnChangePeriod(it)) },
                 onCopyPreviousMonth = { onEvent(BudgetScreenEvent.OnCopyPreviousMonth) },
                 onEditIncome = { onEvent(BudgetScreenEvent.OnOpenEditIncomeModal(true)) },

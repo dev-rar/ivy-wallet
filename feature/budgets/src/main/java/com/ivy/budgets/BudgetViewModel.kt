@@ -31,9 +31,11 @@ import com.ivy.data.repository.SinkingFundRepository
 import com.ivy.data.temp.migration.getAccountId
 import com.ivy.data.temp.migration.getValue
 import com.ivy.domain.model.budget.MonthlyPlanSummary
+import com.ivy.domain.model.cashflow.CashFlowProjection
 import com.ivy.domain.usecase.budget.CopyPreviousMonthPlanUseCase
 import com.ivy.domain.usecase.budget.GetMonthlyPlanSummaryUseCase
 import com.ivy.domain.usecase.budget.SaveBudgetItemUseCase
+import com.ivy.domain.usecase.cashflow.ProjectCashFlowUseCase
 import com.ivy.frp.sumOfSuspend
 import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.toCloseTimeRange
@@ -81,6 +83,7 @@ class BudgetViewModel @Inject constructor(
     private val saveBudgetItemUseCase: SaveBudgetItemUseCase,
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
     private val sinkingFundRepository: SinkingFundRepository,
+    private val projectCashFlowUseCase: ProjectCashFlowUseCase,
 ) : ComposeViewModel<BudgetScreenState, BudgetScreenEvent>() {
 
     private val baseCurrency = mutableStateOf("")
@@ -100,6 +103,7 @@ class BudgetViewModel @Inject constructor(
     private val monthlyPlan = mutableStateOf<MonthlyPlanSummary?>(null)
     private val editItemModalData = mutableStateOf<EditBudgetItemModalData?>(null)
     private val editIncomeModalVisible = mutableStateOf(false)
+    private val cashFlowProjection = mutableStateOf<CashFlowProjection?>(null)
 
     @Composable
     override fun uiState(): BudgetScreenState {
@@ -123,7 +127,8 @@ class BudgetViewModel @Inject constructor(
             monthlyPeriod = monthlyPeriod.value,
             monthlyPlan = monthlyPlan.value,
             editItemModalData = editItemModalData.value,
-            editIncomeModalVisible = editIncomeModalVisible.value
+            editIncomeModalVisible = editIncomeModalVisible.value,
+            cashFlowProjection = cashFlowProjection.value
         )
     }
 
@@ -308,6 +313,7 @@ class BudgetViewModel @Inject constructor(
     private fun loadMonthlyPlan(period: BudgetPeriod) {
         viewModelScope.launch {
             monthlyPlan.value = getMonthlyPlanSummaryUseCase(period)
+            cashFlowProjection.value = runCatching { projectCashFlowUseCase(period) }.getOrNull()
         }
     }
 
