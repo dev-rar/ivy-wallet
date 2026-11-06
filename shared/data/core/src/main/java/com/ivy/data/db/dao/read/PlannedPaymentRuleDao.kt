@@ -24,6 +24,9 @@ interface PlannedPaymentRuleDao {
     @Query("SELECT * FROM planned_payment_rules WHERE id = :id AND isDeleted = 0")
     suspend fun findById(id: UUID): PlannedPaymentRuleEntity?
 
+    @Query("SELECT * FROM planned_payment_rules WHERE budgetItemId = :budgetItemId AND isDeleted = 0 ORDER BY startDate ASC")
+    suspend fun findByBudgetItemId(budgetItemId: UUID): List<PlannedPaymentRuleEntity>
+
     @Query("SELECT COUNT(*) FROM planned_payment_rules WHERE isDeleted = 0 ")
     suspend fun countPlannedPayments(): Long
 }

@@ -2,6 +2,7 @@ package com.ivy.data.db.entity
 
 import androidx.annotation.Keep
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.ivy.base.kotlinxserilzation.KSerializerInstant
 import com.ivy.base.kotlinxserilzation.KSerializerUUID
@@ -15,7 +16,12 @@ import java.util.UUID
 @Suppress("DataClassDefaultValues")
 @Keep
 @Serializable
-@Entity(tableName = "planned_payment_rules")
+@Entity(
+    tableName = "planned_payment_rules",
+    indices = [
+        Index(value = ["budgetItemId"])
+    ]
+)
 data class PlannedPaymentRuleEntity(
     @SerialName("startDate")
     @Serializable(with = KSerializerInstant::class)
@@ -36,6 +42,9 @@ data class PlannedPaymentRuleEntity(
     @SerialName("categoryId")
     @Serializable(with = KSerializerUUID::class)
     val categoryId: UUID? = null,
+    @SerialName("budgetItemId")
+    @Serializable(with = KSerializerUUID::class)
+    val budgetItemId: UUID? = null,
     @SerialName("title")
     val title: String? = null,
     @SerialName("description")

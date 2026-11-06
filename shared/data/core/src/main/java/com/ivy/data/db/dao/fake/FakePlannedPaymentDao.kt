@@ -29,6 +29,10 @@ class FakePlannedPaymentDao : PlannedPaymentRuleDao, WritePlannedPaymentRuleDao 
         return items.find { it.id == id }
     }
 
+    override suspend fun findByBudgetItemId(budgetItemId: UUID): List<PlannedPaymentRuleEntity> {
+        return items.filter { it.budgetItemId == budgetItemId && !it.isDeleted }
+    }
+
     override suspend fun countPlannedPayments(): Long {
         TODO("Not yet implemented")
     }
