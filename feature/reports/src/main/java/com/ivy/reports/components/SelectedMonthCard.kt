@@ -1,6 +1,7 @@
 package com.ivy.reports.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +31,8 @@ import com.ivy.ui.R
 import com.ivy.wallet.ui.theme.Gray
 import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.Red
-import com.ivy.wallet.ui.theme.components.IvyIcon
+import com.ivy.wallet.ui.theme.components.ItemIconSDefaultIcon
+import com.ivy.wallet.ui.theme.findContrastTextColor
 
 @Composable
 fun SelectedMonthCard(
@@ -93,7 +95,7 @@ fun SelectedMonthCard(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "${monthData.income.format(baseCurrency)} $baseCurrency",
+                    text = "+${monthData.income.format(baseCurrency)} $baseCurrency",
                     style = UI.typo.b2.style(color = Green, fontWeight = FontWeight.Bold)
                 )
             }
@@ -105,51 +107,33 @@ fun SelectedMonthCard(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "${monthData.expenses.format(baseCurrency)} $baseCurrency",
+                    text = "-${monthData.expenses.format(baseCurrency)} $baseCurrency",
                     style = UI.typo.b2.style(color = Red, fontWeight = FontWeight.Bold)
                 )
             }
         }
 
-        // Budget Performance Section (if category budgets exist)
+        // Budget Performance Breakdown by Category
         if (monthData.categoryBudgets.isNotEmpty()) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(UI.colors.medium)
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            // Budget Savings Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IvyIcon(
-                        icon = R.drawable.ic_buffer_ok,
-                        tint = Green,
-                        modifier = Modifier.size(16.dp)
+                Text(
+                    text = "Category Budgets",
+                    style = UI.typo.b2.style(
+                        fontWeight = FontWeight.Bold,
+                        color = UI.colors.pureInverse
                     )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Budget Savings",
-                        style = UI.typo.b2.style(
-                            fontWeight = FontWeight.Bold,
-                            color = UI.colors.pureInverse
-                        )
-                    )
-                }
+                )
 
                 val hasSavings = monthData.totalBudgetSavings > 0
                 Text(
                     text = if (hasSavings) {
-                        "+${monthData.totalBudgetSavings.format(baseCurrency)} $baseCurrency saved"
+                        "+${monthData.totalBudgetSavings.format(baseCurrency)} saved"
                     } else {
                         "0 $baseCurrency saved"
                     },
@@ -160,11 +144,11 @@ fun SelectedMonthCard(
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // Category breakdown rows
+            // Category Cards styled exactly like Category Page widgets
             for (cat in monthData.categoryBudgets) {
-                CategoryBudgetRow(
+                CategoryBudgetCard(
                     item = cat,
                     baseCurrency = baseCurrency
                 )
@@ -174,91 +158,132 @@ fun SelectedMonthCard(
     }
 }
 
+/**
+ * Category Card matching the Category page widget styling (Ivy borders, rounded shape, icon badge, progress bar)
+ * displaying Category Name, Left to Spend, and Budget.
+ */
 @Composable
-private fun CategoryBudgetRow(
+private fun CategoryBudgetCard(
     item: CategoryBudgetReportItem,
     baseCurrency: String
 ) {
+    val contrastColor = findContrastTextColor(item.categoryColor)
+    val leftToSpend = item.budgetAmount - item.spentAmount
     val progress = if (item.budgetAmount > 0) {
         (item.spentAmount / item.budgetAmount).toFloat().coerceIn(0f, 1f)
     } else 0f
     val barColor = if (item.isOverspent) Red else Green
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(UI.colors.medium)
-            .padding(12.dp)
+            .clip(UI.shapes.r4)
+            .border(2.dp, UI.colors.medium, UI.shapes.r4)
+            .background(UI.colors.pure)
+            .padding(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Top Row: Category Icon + Name, and Left to Spend on Right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(item.categoryColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ItemIconSDefaultIcon(
+                            iconName = item.categoryIcon,
+                            defaultIcon = R.drawable.ic_custom_category_s,
+                            tint = contrastColor
+                        )
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Text(
+                        text = item.categoryName,
+                        style = UI.typo.b2.style(
+                            fontWeight = FontWeight.Bold,
+                            color = UI.colors.pureInverse
+                        )
+                    )
+                }
+
+                // Left to spend badge / label
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = if (item.isOverspent) "Over budget" else "Left to spend",
+                        style = UI.typo.c.style(
+                            color = Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                    Spacer(Modifier.height(1.dp))
+                    Text(
+                        text = if (item.isOverspent) {
+                            "-${(-leftToSpend).format(baseCurrency)} $baseCurrency"
+                        } else {
+                            "${leftToSpend.format(baseCurrency)} $baseCurrency"
+                        },
+                        style = UI.typo.b2.style(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (item.isOverspent) Red else Green
+                        )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Progress Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(UI.colors.medium)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(item.categoryColor)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = item.categoryName,
-                    style = UI.typo.b2.style(
-                        fontWeight = FontWeight.Bold,
-                        color = UI.colors.pureInverse
-                    )
+                        .fillMaxWidth(fraction = progress)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(barColor)
                 )
             }
 
-            Text(
-                text = if (item.isOverspent) {
-                    "Overspent ${item.spentAmount.format(baseCurrency)}"
-                } else {
-                    "+${item.savedAmount.format(baseCurrency)} saved"
-                },
-                style = UI.typo.c.style(
-                    color = if (item.isOverspent) Red else Green,
-                    fontWeight = FontWeight.Bold
+            Spacer(Modifier.height(8.dp))
+
+            // Bottom Subtext: Spent vs Budget
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Spent: ${item.spentAmount.format(baseCurrency)} $baseCurrency",
+                    style = UI.typo.c.style(
+                        color = Gray,
+                        fontWeight = FontWeight.Medium
+                    )
                 )
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Progress Bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(UI.colors.pure)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(fraction = progress)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(barColor)
-            )
-        }
-
-        Spacer(Modifier.height(6.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Spent: ${item.spentAmount.format(baseCurrency)} $baseCurrency",
-                style = UI.typo.c.style(color = Gray)
-            )
-            Text(
-                text = "Budget: ${item.budgetAmount.format(baseCurrency)} $baseCurrency",
-                style = UI.typo.c.style(color = Gray)
-            )
+                Text(
+                    text = "Budget: ${item.budgetAmount.format(baseCurrency)} $baseCurrency",
+                    style = UI.typo.c.style(
+                        color = Gray,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
         }
     }
 }
