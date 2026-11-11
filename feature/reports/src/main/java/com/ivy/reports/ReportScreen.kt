@@ -49,7 +49,7 @@ import com.ivy.navigation.PieChartStatisticScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.navigation
 import com.ivy.reports.components.AnnualSummaryCard
-import com.ivy.reports.components.MonthlyBarChart
+import com.ivy.reports.components.MonthlyAreaChart
 import com.ivy.reports.components.MonthlyBreakdownList
 import com.ivy.reports.components.SelectedMonthCard
 import com.ivy.reports.model.YearlyReportState
@@ -310,9 +310,10 @@ private fun BoxWithConstraintsScope.UI(
 
                 Spacer(Modifier.height(16.dp))
 
-                MonthlyBarChart(
+                MonthlyAreaChart(
                     monthlyData = state.yearlyReportState.monthlyData,
                     selectedMonthIndex = state.yearlyReportState.selectedMonthIndex,
+                    currency = state.yearlyReportState.baseCurrency,
                     onMonthSelected = {
                         onEventHandler(ReportScreenEvent.OnSelectMonth(it))
                     },
