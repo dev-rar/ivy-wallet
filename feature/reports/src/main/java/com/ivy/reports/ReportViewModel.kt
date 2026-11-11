@@ -16,6 +16,7 @@ import com.ivy.base.legacy.stringRes
 import com.ivy.base.model.TransactionType
 import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
+import com.ivy.base.time.convertToLocal
 import com.ivy.data.model.Category
 import com.ivy.data.model.CategoryId
 import com.ivy.data.model.Expense
@@ -40,6 +41,7 @@ import com.ivy.frp.filterSuspend
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.datamodel.Account
 import com.ivy.legacy.datamodel.temp.toLegacy
+import com.ivy.legacy.utils.format
 import com.ivy.legacy.utils.getISOFormattedDateTime
 import com.ivy.legacy.utils.isNotNullOrBlank
 import com.ivy.legacy.utils.scopedIOThread
@@ -47,6 +49,7 @@ import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.toLowerCaseLocal
 import com.ivy.legacy.utils.uiThread
 import com.ivy.reports.model.CategoryBudgetReportItem
+import com.ivy.reports.model.MonthTransactionItem
 import com.ivy.reports.model.MonthlyReportData
 import com.ivy.reports.model.YearlyReportState
 import com.ivy.ui.ComposeViewModel
@@ -288,14 +291,17 @@ class ReportViewModel @Inject constructor(
                     ).orNull()?.toDouble() ?: 0.0
                 }
 
-                val categoryBudgetItems = allBudgets.filter { it.categoryIdsSerialized.isNotNullOrBlank() }.mapNotNull { budget ->
-                    val catIds = budget.parseCategoryIds()
-                    val accIds = budget.parseAccountIds()
-                    val matchedCategory = allCategories.firstOrNull { catIds.contains(it.id.value) }
+                // Include ALL categories: those with a budget AND those without a budget
+                val categoryBudgetMap = allBudgets.filter { it.categoryIdsSerialized.isNotNullOrBlank() }
+                    .associateBy { it.parseCategoryIds().firstOrNull() }
+
+                val categoryBudgetItems = allCategories.map { category ->
+                    val catId = category.id.value
+                    val associatedBudget = categoryBudgetMap[catId]
+                    val budgetAmount = associatedBudget?.amount ?: 0.0
 
                     val spent = monthTrns.filterIsInstance<Expense>()
-                        .filter { accIds.isEmpty() || accIds.contains(it.getAccountId()) }
-                        .filter { it.category != null && catIds.contains(it.category!!.value) }
+                        .filter { it.category != null && it.category!!.value == catId }
                         .sumOf {
                             exchangeAct(
                                 ExchangeAct.Input(
@@ -309,19 +315,62 @@ class ReportViewModel @Inject constructor(
                         }
 
                     CategoryBudgetReportItem(
-                        categoryName = budget.name,
-                        categoryColor = matchedCategory?.color?.value?.toComposeColor() ?: Gray,
-                        categoryIcon = matchedCategory?.icon?.id,
-                        budgetAmount = budget.amount,
+                        categoryName = category.name.value,
+                        categoryColor = category.color.value.toComposeColor(),
+                        categoryIcon = category.icon?.id,
+                        budgetAmount = budgetAmount,
                         spentAmount = spent,
-                        savedAmount = maxOf(0.0, budget.amount - spent),
-                        isOverspent = spent > budget.amount
+                        savedAmount = if (budgetAmount > 0) maxOf(0.0, budgetAmount - spent) else 0.0,
+                        isOverspent = budgetAmount > 0 && spent > budgetAmount,
+                        hasBudget = budgetAmount > 0
+                    )
+                }.sortedWith(compareByDescending<CategoryBudgetReportItem> { it.hasBudget }
+                    .thenByDescending { it.spentAmount })
+                .toImmutableList()
+
+                // Formatted list of all transactions for this month (Income & Expense)
+                val monthTransactions = monthTrns.mapNotNull { trn ->
+                    val isIncome = trn is Income
+                    val isExpense = trn is Expense
+                    if (!isIncome && !isExpense) return@mapNotNull null
+
+                    val trnCatId = trn.category?.value
+                    val cat = trnCatId?.let { cid -> allCategories.find { it.id.value == cid } }
+
+                    val trnVal = exchangeAct(
+                        ExchangeAct.Input(
+                            data = ExchangeData(
+                                baseCurrency = currentBaseCurrency,
+                                fromCurrency = trnCurrency(trn, currentAccounts, currentBaseCurrency)
+                            ),
+                            amount = trn.getValue()
+                        )
+                    ).orNull()?.toDouble() ?: 0.0
+
+                    val trnTitle = trn.title?.value ?: cat?.name?.value ?: if (isIncome) "Income" else "Expense"
+
+                    val dateText = try {
+                        val localD = trn.time.convertToLocal().toLocalDate()
+                        "${localD.dayOfMonth} ${localD.month.name.take(3)}"
+                    } catch (e: Exception) {
+                        ""
+                    }
+
+                    MonthTransactionItem(
+                        id = trn.id.value.toString(),
+                        title = trnTitle,
+                        categoryName = cat?.name?.value ?: "General",
+                        categoryColor = cat?.color?.value?.toComposeColor() ?: Gray,
+                        categoryIcon = cat?.icon?.id,
+                        amountFormatted = "${if (isIncome) "+" else "-"}${trnVal.format(currentBaseCurrency)} $currentBaseCurrency",
+                        isIncome = isIncome,
+                        dateFormatted = dateText
                     )
                 }.toImmutableList()
 
-                val totalBudgeted = categoryBudgetItems.sumOf { it.budgetAmount }
-                val totalBudgetSpent = categoryBudgetItems.sumOf { it.spentAmount }
-                val totalBudgetSavings = categoryBudgetItems.sumOf { it.savedAmount }
+                val totalBudgeted = categoryBudgetItems.filter { it.hasBudget }.sumOf { it.budgetAmount }
+                val totalBudgetSpent = categoryBudgetItems.filter { it.hasBudget }.sumOf { it.spentAmount }
+                val totalBudgetSavings = categoryBudgetItems.filter { it.hasBudget }.sumOf { it.savedAmount }
 
                 MonthlyReportData(
                     month = monthNum,
@@ -333,7 +382,8 @@ class ReportViewModel @Inject constructor(
                     totalBudgeted = totalBudgeted,
                     totalBudgetSpent = totalBudgetSpent,
                     totalBudgetSavings = totalBudgetSavings,
-                    categoryBudgets = categoryBudgetItems
+                    categoryBudgets = categoryBudgetItems,
+                    monthTransactions = monthTransactions
                 )
             }.toImmutableList()
 

@@ -13,7 +13,20 @@ data class CategoryBudgetReportItem(
     val budgetAmount: Double,
     val spentAmount: Double,
     val savedAmount: Double,
-    val isOverspent: Boolean
+    val isOverspent: Boolean,
+    val hasBudget: Boolean
+)
+
+@Immutable
+data class MonthTransactionItem(
+    val id: String,
+    val title: String,
+    val categoryName: String,
+    val categoryColor: Color,
+    val categoryIcon: String?,
+    val amountFormatted: String,
+    val isIncome: Boolean,
+    val dateFormatted: String
 )
 
 @Immutable
@@ -27,7 +40,8 @@ data class MonthlyReportData(
     val totalBudgeted: Double,
     val totalBudgetSpent: Double,
     val totalBudgetSavings: Double,
-    val categoryBudgets: ImmutableList<CategoryBudgetReportItem> = persistentListOf()
+    val categoryBudgets: ImmutableList<CategoryBudgetReportItem> = persistentListOf(),
+    val monthTransactions: ImmutableList<MonthTransactionItem> = persistentListOf()
 )
 
 @Immutable
@@ -42,4 +56,3 @@ data class YearlyReportState(
     val monthlyData: ImmutableList<MonthlyReportData> = persistentListOf(),
     val selectedMonthIndex: Int = (java.time.LocalDate.now().monthValue - 1).coerceIn(0, 11)
 )
-
