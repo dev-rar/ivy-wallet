@@ -48,6 +48,11 @@ import com.ivy.legacy.utils.rememberInteractionSource
 import com.ivy.navigation.PieChartStatisticScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.navigation
+import com.ivy.reports.components.AnnualSummaryCard
+import com.ivy.reports.components.MonthlyBarChart
+import com.ivy.reports.components.MonthlyBreakdownList
+import com.ivy.reports.components.SelectedMonthCard
+import com.ivy.reports.model.YearlyReportState
 import com.ivy.ui.R
 import com.ivy.ui.rememberScrollPositionListState
 import com.ivy.wallet.domain.pure.data.IncomeExpensePair
@@ -140,91 +145,91 @@ private fun BoxWithConstraintsScope.UI(
             )
         }
 
-        item {
-            Text(
-                modifier = Modifier.padding(
-                    start = 32.dp
-                ),
-                text = stringResource(R.string.reports),
-                style = UI.typo.h2.style(
-                    fontWeight = FontWeight.ExtraBold
-                )
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            BalanceRow(
-                modifier = Modifier
-                    .padding(start = 32.dp),
-                textColor = UI.colors.pureInverse,
-                currency = state.baseCurrency,
-                balance = state.balance,
-                balanceAmountPrefix = when {
-                    state.balance > 0 -> "+"
-                    else -> null
-                }
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            IncomeExpensesCards(
-                history = state.history,
-                currency = state.baseCurrency,
-                income = state.income,
-                expenses = state.expenses,
-                hasAddButtons = false,
-                itemColor = UI.colors.pure,
-                incomeHeaderCardClicked = {
-                    if (state.transactions.isNotEmpty()) {
-                        nav.navigateTo(
-                            PieChartStatisticScreen(
-                                type = TransactionType.INCOME,
-                                transactions = legacyTransactions.toImmutableList(),
-                                accountList = state.accountIdFilters,
-                                treatTransfersAsIncomeExpense = state.treatTransfersAsIncExp
-                            )
-                        )
-                    }
-                },
-                expenseHeaderCardClicked = {
-                    if (state.transactions.isNotEmpty()) {
-                        nav.navigateTo(
-                            PieChartStatisticScreen(
-                                type = TransactionType.EXPENSE,
-                                transactions = legacyTransactions.toImmutableList(),
-                                accountList = state.accountIdFilters,
-                                treatTransfersAsIncomeExpense = state.treatTransfersAsIncExp
-                            )
-                        )
-                    }
-                }
-            )
-
-            if (state.showTransfersAsIncExpCheckbox) {
-                IvyCheckboxWithText(
-                    modifier = Modifier
-                        .padding(16.dp),
-                    text = stringResource(R.string.transfers_as_income_expense),
-                    checked = state.treatTransfersAsIncExp
-                ) {
-                    onEventHandler.invoke(
-                        ReportScreenEvent.OnTreatTransfersAsIncomeExpense(
-                            transfersAsIncomeExpense = it
-                        )
+        if (state.filter != null) {
+            item {
+                Text(
+                    modifier = Modifier.padding(
+                        start = 32.dp
+                    ),
+                    text = stringResource(R.string.reports),
+                    style = UI.typo.h2.style(
+                        fontWeight = FontWeight.ExtraBold
                     )
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                BalanceRow(
+                    modifier = Modifier
+                        .padding(start = 32.dp),
+                    textColor = UI.colors.pureInverse,
+                    currency = state.baseCurrency,
+                    balance = state.balance,
+                    balanceAmountPrefix = when {
+                        state.balance > 0 -> "+"
+                        else -> null
+                    }
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                IncomeExpensesCards(
+                    history = state.history,
+                    currency = state.baseCurrency,
+                    income = state.income,
+                    expenses = state.expenses,
+                    hasAddButtons = false,
+                    itemColor = UI.colors.pure,
+                    incomeHeaderCardClicked = {
+                        if (state.transactions.isNotEmpty()) {
+                            nav.navigateTo(
+                                PieChartStatisticScreen(
+                                    type = TransactionType.INCOME,
+                                    transactions = legacyTransactions.toImmutableList(),
+                                    accountList = state.accountIdFilters,
+                                    treatTransfersAsIncomeExpense = state.treatTransfersAsIncExp
+                                )
+                            )
+                        }
+                    },
+                    expenseHeaderCardClicked = {
+                        if (state.transactions.isNotEmpty()) {
+                            nav.navigateTo(
+                                PieChartStatisticScreen(
+                                    type = TransactionType.EXPENSE,
+                                    transactions = legacyTransactions.toImmutableList(),
+                                    accountList = state.accountIdFilters,
+                                    treatTransfersAsIncomeExpense = state.treatTransfersAsIncExp
+                                )
+                            )
+                        }
+                    }
+                )
+
+                if (state.showTransfersAsIncExpCheckbox) {
+                    IvyCheckboxWithText(
+                        modifier = Modifier
+                            .padding(16.dp),
+                        text = stringResource(R.string.transfers_as_income_expense),
+                        checked = state.treatTransfersAsIncExp
+                    ) {
+                        onEventHandler.invoke(
+                            ReportScreenEvent.OnTreatTransfersAsIncomeExpense(
+                                transfersAsIncomeExpense = it
+                            )
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.height(32.dp))
                 }
-            } else {
-                Spacer(Modifier.height(32.dp))
+
+                TransactionsDividerLine(
+                    paddingHorizontal = 0.dp
+                )
+
+                Spacer(Modifier.height(4.dp))
             }
 
-            TransactionsDividerLine(
-                paddingHorizontal = 0.dp
-            )
-
-            Spacer(Modifier.height(4.dp))
-        }
-
-        if (state.filter != null) {
             transactions(
                 baseData = AppBaseData(
                     baseCurrency = state.baseCurrency,
@@ -274,16 +279,71 @@ private fun BoxWithConstraintsScope.UI(
                 }
             )
         } else {
+            // Annual & Monthly Financial Dashboard
             item {
-                NoFilterEmptyState(
-                    setFilterOverlayVisible = {
-                        onEventHandler.invoke(
-                            ReportScreenEvent.OnFilterOverlayVisible(
-                                filterOverlayVisible = it
-                            )
-                        )
-                    }
+                Text(
+                    modifier = Modifier.padding(start = 24.dp),
+                    text = stringResource(R.string.reports),
+                    style = UI.typo.h2.style(
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 )
+
+                Spacer(Modifier.height(16.dp))
+
+                AnnualSummaryCard(
+                    year = state.yearlyReportState.year,
+                    baseCurrency = state.yearlyReportState.baseCurrency,
+                    totalIncome = state.yearlyReportState.totalAnnualIncome,
+                    totalExpenses = state.yearlyReportState.totalAnnualExpenses,
+                    netSavings = state.yearlyReportState.netAnnualSavings,
+                    savingsRate = state.yearlyReportState.annualSavingsRate,
+                    annualBudgetSavings = state.yearlyReportState.totalAnnualBudgetSavings,
+                    onPreviousYear = {
+                        onEventHandler(ReportScreenEvent.OnSelectYear(state.yearlyReportState.year - 1))
+                    },
+                    onNextYear = {
+                        onEventHandler(ReportScreenEvent.OnSelectYear(state.yearlyReportState.year + 1))
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                MonthlyBarChart(
+                    monthlyData = state.yearlyReportState.monthlyData,
+                    selectedMonthIndex = state.yearlyReportState.selectedMonthIndex,
+                    onMonthSelected = {
+                        onEventHandler(ReportScreenEvent.OnSelectMonth(it))
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                val selectedMonth = state.yearlyReportState.monthlyData.getOrNull(state.yearlyReportState.selectedMonthIndex)
+                if (selectedMonth != null) {
+                    Spacer(Modifier.height(16.dp))
+
+                    SelectedMonthCard(
+                        monthData = selectedMonth,
+                        year = state.yearlyReportState.year,
+                        baseCurrency = state.yearlyReportState.baseCurrency,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                MonthlyBreakdownList(
+                    monthlyData = state.yearlyReportState.monthlyData,
+                    selectedMonthIndex = state.yearlyReportState.selectedMonthIndex,
+                    baseCurrency = state.yearlyReportState.baseCurrency,
+                    onSelectMonth = {
+                        onEventHandler(ReportScreenEvent.OnSelectMonth(it))
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(Modifier.height(48.dp))
             }
         }
     }

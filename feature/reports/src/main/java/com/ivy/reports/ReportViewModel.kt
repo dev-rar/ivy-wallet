@@ -30,6 +30,7 @@ import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.TagRepository
 import com.ivy.data.repository.TransactionRepository
 import com.ivy.data.repository.mapper.TransactionMapper
+import com.ivy.data.temp.migration.getAccountId
 import com.ivy.data.temp.migration.getTransactionType
 import com.ivy.data.temp.migration.getValue
 import com.ivy.domain.RootScreen
@@ -40,13 +41,18 @@ import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.datamodel.Account
 import com.ivy.legacy.datamodel.temp.toLegacy
 import com.ivy.legacy.utils.getISOFormattedDateTime
+import com.ivy.legacy.utils.isNotNullOrBlank
 import com.ivy.legacy.utils.scopedIOThread
 import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.toLowerCaseLocal
 import com.ivy.legacy.utils.uiThread
+import com.ivy.reports.model.CategoryBudgetReportItem
+import com.ivy.reports.model.MonthlyReportData
+import com.ivy.reports.model.YearlyReportState
 import com.ivy.ui.ComposeViewModel
 import com.ivy.ui.R
 import com.ivy.wallet.domain.action.account.AccountsAct
+import com.ivy.wallet.domain.action.budget.BudgetsAct
 import com.ivy.wallet.domain.action.exchange.ExchangeAct
 import com.ivy.wallet.domain.action.settings.BaseCurrencyAct
 import com.ivy.wallet.domain.action.transaction.CalcTrnsIncomeExpenseAct
@@ -57,6 +63,7 @@ import com.ivy.wallet.domain.pure.exchange.ExchangeData
 import com.ivy.wallet.domain.pure.transaction.trnCurrency
 import com.ivy.wallet.domain.pure.util.orZero
 import com.ivy.wallet.ui.theme.Gray
+import com.ivy.wallet.ui.theme.toComposeColor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -69,7 +76,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.Month
 import java.time.ZoneId
+import java.time.format.TextStyle
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -90,7 +101,8 @@ class ReportViewModel @Inject constructor(
     private val exportCsvUseCase: ExportCsvUseCase,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
-    private val features: Features
+    private val features: Features,
+    private val budgetsAct: BudgetsAct
 ) : ComposeViewModel<ReportScreenState, ReportScreenEvent>() {
     private val unSpecifiedCategory =
         Category(
@@ -126,6 +138,7 @@ class ReportViewModel @Inject constructor(
     private var showTransfersAsIncExpCheckbox by mutableStateOf(false)
     private var treatTransfersAsIncExp by mutableStateOf(false)
     private var allTags by mutableStateOf<ImmutableList<Tag>>(persistentListOf())
+    private var yearlyReportState by mutableStateOf(YearlyReportState())
 
     private var tagSearchJob: Job? = null
     private val tagSearchDebounceTimeInMills: Long = 500
@@ -165,7 +178,8 @@ class ReportViewModel @Inject constructor(
             upcomingIncome = upcomingIncome,
             upcomingTransactions = upcomingTransactions,
             allTags = allTags,
-            showAccountColorsInTransactions = getShouldShowAccountSpecificColorInTransactions()
+            showAccountColorsInTransactions = getShouldShowAccountSpecificColorInTransactions(),
+            yearlyReportState = yearlyReportState
         )
     }
 
@@ -188,6 +202,10 @@ class ReportViewModel @Inject constructor(
                 )
 
                 is ReportScreenEvent.OnTagSearch -> onTagSearch(event.data)
+                is ReportScreenEvent.OnSelectYear -> loadYearlyReport(event.year)
+                is ReportScreenEvent.OnSelectMonth -> {
+                    yearlyReportState = yearlyReportState.copy(selectedMonthIndex = event.monthIndex)
+                }
             }
         }
     }
@@ -218,6 +236,129 @@ class ReportViewModel @Inject constructor(
             categories =
                 (listOf(unSpecifiedCategory) + categoryRepository.findAll()).toImmutableList()
             allTags = tagRepository.findAll().toImmutableList()
+            loadYearlyReport(LocalDate.now().year)
+        }
+    }
+
+    private fun loadYearlyReport(year: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentBaseCurrency = baseCurrencyAct(Unit)
+            val currentAccounts = accountsAct(Unit)
+            val allBudgets = budgetsAct(Unit)
+            val allCategories = categoryRepository.findAll()
+
+            val startOfYear = LocalDate.of(year, 1, 1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val endOfYear = LocalDate.of(year, 12, 31).atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant()
+
+            val yearTransactions = transactionRepository.findAllBetween(
+                startDate = startOfYear,
+                endDate = endOfYear
+            )
+
+            val monthlyList = (1..12).map { monthNum ->
+                val monthEnum = Month.of(monthNum)
+                val monthName = monthEnum.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                val monthAbbrev = monthEnum.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+
+                val monthTrns = yearTransactions.filter {
+                    it.time.atZone(ZoneId.systemDefault()).monthValue == monthNum
+                }
+
+                val monthIncome = monthTrns.filterIsInstance<Income>().sumOf {
+                    exchangeAct(
+                        ExchangeAct.Input(
+                            data = ExchangeData(
+                                baseCurrency = currentBaseCurrency,
+                                fromCurrency = trnCurrency(it, currentAccounts, currentBaseCurrency)
+                            ),
+                            amount = it.getValue()
+                        )
+                    ).orNull()?.toDouble() ?: 0.0
+                }
+
+                val monthExpenses = monthTrns.filterIsInstance<Expense>().sumOf {
+                    exchangeAct(
+                        ExchangeAct.Input(
+                            data = ExchangeData(
+                                baseCurrency = currentBaseCurrency,
+                                fromCurrency = trnCurrency(it, currentAccounts, currentBaseCurrency)
+                            ),
+                            amount = it.getValue()
+                        )
+                    ).orNull()?.toDouble() ?: 0.0
+                }
+
+                val categoryBudgetItems = allBudgets.filter { it.categoryIdsSerialized.isNotNullOrBlank() }.mapNotNull { budget ->
+                    val catIds = budget.parseCategoryIds()
+                    val accIds = budget.parseAccountIds()
+                    val matchedCategory = allCategories.firstOrNull { catIds.contains(it.id.value) }
+
+                    val spent = monthTrns.filterIsInstance<Expense>()
+                        .filter { accIds.isEmpty() || accIds.contains(it.getAccountId()) }
+                        .filter { it.category != null && catIds.contains(it.category!!.value) }
+                        .sumOf {
+                            exchangeAct(
+                                ExchangeAct.Input(
+                                    data = ExchangeData(
+                                        baseCurrency = currentBaseCurrency,
+                                        fromCurrency = trnCurrency(it, currentAccounts, currentBaseCurrency)
+                                    ),
+                                    amount = it.getValue()
+                                )
+                            ).orNull()?.toDouble() ?: 0.0
+                        }
+
+                    CategoryBudgetReportItem(
+                        categoryName = budget.name,
+                        categoryColor = matchedCategory?.color?.value?.toComposeColor() ?: Gray,
+                        categoryIcon = matchedCategory?.icon?.id,
+                        budgetAmount = budget.amount,
+                        spentAmount = spent,
+                        savedAmount = maxOf(0.0, budget.amount - spent),
+                        isOverspent = spent > budget.amount
+                    )
+                }.toImmutableList()
+
+                val totalBudgeted = categoryBudgetItems.sumOf { it.budgetAmount }
+                val totalBudgetSpent = categoryBudgetItems.sumOf { it.spentAmount }
+                val totalBudgetSavings = categoryBudgetItems.sumOf { it.savedAmount }
+
+                MonthlyReportData(
+                    month = monthNum,
+                    monthName = monthName,
+                    monthAbbrev = monthAbbrev,
+                    income = monthIncome,
+                    expenses = monthExpenses,
+                    netSavings = monthIncome - monthExpenses,
+                    totalBudgeted = totalBudgeted,
+                    totalBudgetSpent = totalBudgetSpent,
+                    totalBudgetSavings = totalBudgetSavings,
+                    categoryBudgets = categoryBudgetItems
+                )
+            }.toImmutableList()
+
+            val totalAnnualIncome = monthlyList.sumOf { it.income }
+            val totalAnnualExpenses = monthlyList.sumOf { it.expenses }
+            val netAnnualSavings = totalAnnualIncome - totalAnnualExpenses
+            val annualSavingsRate = if (totalAnnualIncome > 0) {
+                ((netAnnualSavings / totalAnnualIncome) * 100.0).coerceAtLeast(0.0)
+            } else 0.0
+            val totalAnnualBudgetSavings = monthlyList.sumOf { it.totalBudgetSavings }
+
+            val currentMonthIndex = (LocalDate.now().monthValue - 1).coerceIn(0, 11)
+            val selectedIndex = if (year == LocalDate.now().year) currentMonthIndex else 11
+
+            yearlyReportState = YearlyReportState(
+                year = year,
+                baseCurrency = currentBaseCurrency,
+                totalAnnualIncome = totalAnnualIncome,
+                totalAnnualExpenses = totalAnnualExpenses,
+                netAnnualSavings = netAnnualSavings,
+                annualSavingsRate = annualSavingsRate,
+                totalAnnualBudgetSavings = totalAnnualBudgetSavings,
+                monthlyData = monthlyList,
+                selectedMonthIndex = selectedIndex
+            )
         }
     }
 

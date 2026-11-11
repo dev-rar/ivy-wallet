@@ -15,6 +15,8 @@ sealed class ReportScreenEvent {
     data class OnTagSearch(val data: String) : ReportScreenEvent()
     data class OnTreatTransfersAsIncomeExpense(val transfersAsIncomeExpense: Boolean) :
         ReportScreenEvent()
+    data class OnSelectYear(val year: Int) : ReportScreenEvent()
+    data class OnSelectMonth(val monthIndex: Int) : ReportScreenEvent()
 
     @Deprecated("Uses legacy Transaction")
     data class SkipTransactionsLegacy(val transactions: List<com.ivy.base.legacy.Transaction>) :
