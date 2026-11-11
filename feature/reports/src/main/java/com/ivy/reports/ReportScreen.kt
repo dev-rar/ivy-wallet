@@ -50,8 +50,7 @@ import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.navigation
 import com.ivy.reports.components.AnnualSummaryCard
 import com.ivy.reports.components.MonthlyAreaChart
-import com.ivy.reports.components.MonthlyOverviewCategoryCard
-import com.ivy.reports.components.SelectedMonthDetailsSection
+import com.ivy.reports.components.SelectedMonthOverviewSection
 import com.ivy.reports.model.YearlyReportState
 import com.ivy.ui.R
 import com.ivy.ui.rememberScrollPositionListState
@@ -298,7 +297,6 @@ private fun BoxWithConstraintsScope.UI(
                     totalExpenses = state.yearlyReportState.totalAnnualExpenses,
                     netSavings = state.yearlyReportState.netAnnualSavings,
                     savingsRate = state.yearlyReportState.annualSavingsRate,
-                    annualBudgetSavings = state.yearlyReportState.totalAnnualBudgetSavings,
                     onPreviousYear = {
                         onEventHandler(ReportScreenEvent.OnSelectYear(state.yearlyReportState.year - 1))
                     },
@@ -322,48 +320,15 @@ private fun BoxWithConstraintsScope.UI(
 
                 Spacer(Modifier.height(20.dp))
 
-                Text(
-                    modifier = Modifier.padding(start = 24.dp),
-                    text = "Monthly Overview",
-                    style = UI.typo.b1.style(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = UI.colors.pureInverse
-                    )
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                // Monthly Cards (Dec down to Jan) styled exactly like Category page cards
-                val reversedIndices = state.yearlyReportState.monthlyData.indices.reversed()
-                for (index in reversedIndices) {
-                    val month = state.yearlyReportState.monthlyData[index]
-                    val isSelected = index == state.yearlyReportState.selectedMonthIndex
-
-                    MonthlyOverviewCategoryCard(
-                        monthData = month,
+                // Show ONLY the selected month breakdown (dynamically updated as the user taps or scrubs the chart)
+                val selectedMonth = state.yearlyReportState.monthlyData.getOrNull(state.yearlyReportState.selectedMonthIndex)
+                if (selectedMonth != null) {
+                    SelectedMonthOverviewSection(
+                        monthData = selectedMonth,
                         year = state.yearlyReportState.year,
-                        isSelected = isSelected,
                         baseCurrency = state.yearlyReportState.baseCurrency,
-                        onClick = {
-                            onEventHandler(ReportScreenEvent.OnSelectMonth(index))
-                        },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-
-                    // If selected, display detailed breakdown (All Categories + Transaction History) right below it
-                    if (isSelected) {
-                        Spacer(Modifier.height(14.dp))
-
-                        SelectedMonthDetailsSection(
-                            monthData = month,
-                            baseCurrency = state.yearlyReportState.baseCurrency,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
-                        Spacer(Modifier.height(14.dp))
-                    } else {
-                        Spacer(Modifier.height(12.dp))
-                    }
                 }
 
                 Spacer(Modifier.height(48.dp))

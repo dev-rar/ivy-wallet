@@ -40,7 +40,6 @@ fun AnnualSummaryCard(
     totalExpenses: Double,
     netSavings: Double,
     savingsRate: Double,
-    annualBudgetSavings: Double,
     onPreviousYear: () -> Unit,
     onNextYear: () -> Unit,
     modifier: Modifier = Modifier
@@ -205,33 +204,6 @@ fun AnnualSummaryCard(
                         )
                     )
                 }
-            }
-        }
-
-        // Annual Budget Savings Banner (if any)
-        if (annualBudgetSavings > 0) {
-            Spacer(Modifier.height(10.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1B5E20).copy(alpha = 0.08f))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IvyIcon(
-                    icon = R.drawable.ic_buffer_ok,
-                    tint = Color(0xFF2E7D32),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "${annualBudgetSavings.format(baseCurrency)} $baseCurrency saved under budget in $year!",
-                    style = UI.typo.c.style(
-                        color = Color(0xFF2E7D32),
-                        fontWeight = FontWeight.Bold
-                    )
-                )
             }
         }
     }
