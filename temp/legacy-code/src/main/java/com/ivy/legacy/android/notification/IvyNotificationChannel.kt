@@ -20,6 +20,13 @@ enum class IvyNotificationChannel(
         description = "Reminding you to record your transactions on a daily basis.",
         importance = NotificationManager.IMPORTANCE_HIGH,
         bypassDnd = false
+    ),
+    BUDGET_ALERTS(
+        channelId = "budget_alerts",
+        channelName = "Budget Alerts",
+        description = "Alerts when approaching or exceeding category budgets.",
+        importance = NotificationManager.IMPORTANCE_HIGH,
+        bypassDnd = false
     );
 
     @SuppressLint("WrongConstant")

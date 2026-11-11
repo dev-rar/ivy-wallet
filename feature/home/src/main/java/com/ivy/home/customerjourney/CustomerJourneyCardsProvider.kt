@@ -14,7 +14,9 @@ import com.ivy.design.l0_system.Orange
 import com.ivy.design.l0_system.Red
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.data.model.MainTab
+import com.ivy.navigation.BudgetScreen
 import com.ivy.navigation.EditPlannedScreen
+import com.ivy.wallet.domain.action.budget.CheckBudgetAlertsAct
 import com.ivy.navigation.Navigation
 import com.ivy.navigation.PieChartStatisticScreen
 import com.ivy.navigation.PollScreen
@@ -33,6 +35,7 @@ class CustomerJourneyCardsProvider @Inject constructor(
   private val ivyContext: IvyWalletCtx,
   private val pollRepository: PollRepository,
   private val timeProvider: TimeProvider,
+  private val checkBudgetAlertsAct: CheckBudgetAlertsAct,
 ) {
 
   suspend fun loadCards(): List<CustomerJourneyCardModel> {
@@ -43,7 +46,7 @@ class CustomerJourneyCardsProvider @Inject constructor(
       timeProvider = timeProvider,
     )
 
-    return ACTIVE_CARDS
+    val staticCards = ACTIVE_CARDS
       .filter {
         it.condition(
           trnCount,
@@ -52,6 +55,44 @@ class CustomerJourneyCardsProvider @Inject constructor(
           deps
         ) && !isCardDismissed(it)
       }
+
+    val dynamicBudgetCards = loadBudgetAlertCards()
+    return dynamicBudgetCards + staticCards
+  }
+
+  private suspend fun loadBudgetAlertCards(): List<CustomerJourneyCardModel> {
+    val alerts = checkBudgetAlertsAct.checkAlerts()
+    val today = timeProvider.localDateNow()
+    val monthKey = "${today.year}_${today.monthValue}"
+
+    return alerts.mapNotNull { alert ->
+      val severityKey = if (alert.isOverspent) "overspent" else "warning"
+      val cardId = "budget_alert_${alert.categoryId}_${monthKey}_$severityKey"
+
+      val cardModel = CustomerJourneyCardModel(
+        id = cardId,
+        condition = { _, _, _, _ -> true },
+        title = if (alert.isOverspent) {
+          "🚨 Budget Exceeded: ${alert.categoryName}"
+        } else {
+          "⚠️ Approaching Limit: ${alert.categoryName}"
+        },
+        description = if (alert.isOverspent) {
+          "You've exceeded your budget (${String.format("%,.0f", alert.spentAmount)} / ${String.format("%,.0f", alert.budgetAmount)} ${alert.currency})."
+        } else {
+          "You've spent ${alert.percentage}% of your budget (${String.format("%,.0f", alert.spentAmount)} / ${String.format("%,.0f", alert.budgetAmount)} ${alert.currency})."
+        },
+        cta = "View Budget",
+        ctaIcon = R.drawable.ic_custom_bills_s,
+        background = if (alert.isOverspent) Gradient.solid(Red) else Gradient.solid(Orange),
+        hasDismiss = true,
+        onAction = { navigation, _, _ ->
+          navigation.navigateTo(BudgetScreen)
+        }
+      )
+
+      if (isCardDismissed(cardModel)) null else cardModel
+    }
   }
 
   private fun isCardDismissed(cardData: CustomerJourneyCardModel): Boolean {

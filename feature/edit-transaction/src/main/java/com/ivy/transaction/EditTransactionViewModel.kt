@@ -47,6 +47,7 @@ import com.ivy.ui.R
 import com.ivy.ui.time.impl.DateTimePicker
 import com.ivy.wallet.domain.action.account.AccountByIdAct
 import com.ivy.wallet.domain.action.account.AccountsAct
+import com.ivy.wallet.domain.action.budget.CheckBudgetAlertsAct
 import com.ivy.wallet.domain.action.transaction.TrnByIdAct
 import com.ivy.wallet.domain.data.CustomExchangeRateState
 import com.ivy.wallet.domain.deprecated.logic.CategoryCreator
@@ -107,6 +108,7 @@ class EditTransactionViewModel @Inject constructor(
     private val timeConverter: TimeConverter,
     private val timeProvider: TimeProvider,
     private val dateTimePicker: DateTimePicker,
+    private val checkBudgetAlertsAct: CheckBudgetAlertsAct,
 ) : ComposeViewModel<EditTransactionViewState, EditTransactionViewEvent>() {
 
     private var transactionType by mutableStateOf(TransactionType.EXPENSE)
@@ -749,6 +751,10 @@ class EditTransactionViewModel @Inject constructor(
 
                 loadedTransaction().toDomain(transactionMapper)?.let {
                     transactionRepo.save(it)
+                }
+
+                if (transactionType == TransactionType.EXPENSE) {
+                    checkBudgetAlertsAct.checkAndNotifyPostTransaction(category?.id?.value)
                 }
 
                 refreshWidget(WalletBalanceWidgetReceiver::class.java)
