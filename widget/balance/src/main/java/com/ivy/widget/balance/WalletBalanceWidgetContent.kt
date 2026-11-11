@@ -20,6 +20,7 @@ import androidx.glance.layout.RowScope
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
@@ -30,6 +31,15 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.ivy.ui.R
 
+/**
+ * Modern Material You Jetpack Glance Balance & Budget Widget.
+ *
+ * Displays:
+ * 1. Current Balance & Currency header
+ * 2. Monthly Income & Expense breakdown pills
+ * 3. Monthly Budget status pill (Budget Remaining / Exceeded)
+ * 4. 1-Tap Quick Action Buttons (+ Income, + Expense, + Transfer)
+ */
 @Composable
 fun WalletBalanceWidgetContent(
     appLocked: Boolean,
@@ -37,6 +47,10 @@ fun WalletBalanceWidgetContent(
     currency: String,
     income: String,
     expense: String,
+    hasBudget: Boolean = false,
+    budgetTotal: String = "",
+    budgetRemaining: String = "",
+    budgetPercent: Float = 0f,
     onIncomeClick: Action,
     onExpenseClick: Action,
     onTransferClick: Action,
@@ -50,7 +64,7 @@ fun WalletBalanceWidgetContent(
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = GlanceModifier.fillMaxSize(),
+            modifier = GlanceModifier.fillMaxSize().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = if (appLocked) Alignment.CenterHorizontally else Alignment.Start
         ) {
@@ -59,16 +73,184 @@ fun WalletBalanceWidgetContent(
                     modifier = GlanceModifier.padding(8.dp),
                     text = resources.getString(R.string.app_locked),
                     style = TextStyle(
-                        fontSize = 25.sp,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
                         color = ColorProvider(Color.White),
                         textAlign = TextAlign.Center
                     )
                 )
             } else {
-                BalanceSection(balance, currency)
-                IncomeExpenseSection(income, expense, currency)
-                ButtonsSection(onIncomeClick, onExpenseClick, onTransferClick)
+                BalanceSection(balance = balance, currency = currency)
+                Spacer(GlanceModifier.height(8.dp))
+                IncomeExpenseSection(income = income, expense = expense, currency = currency)
+
+                if (hasBudget) {
+                    Spacer(GlanceModifier.height(8.dp))
+                    BudgetStatusSection(
+                        budgetRemaining = budgetRemaining,
+                        budgetTotal = budgetTotal,
+                        currency = currency,
+                        percent = budgetPercent
+                    )
+                }
+
+                Spacer(GlanceModifier.height(6.dp))
+                ButtonsSection(
+                    onIncomeClick = onIncomeClick,
+                    onExpenseClick = onExpenseClick,
+                    onTransferClick = onTransferClick
+                )
             }
+        }
+    }
+}
+
+@Composable
+fun BalanceSection(
+    balance: String,
+    currency: String,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 4.dp),
+    ) {
+        Text(
+            text = currency,
+            style = TextStyle(
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Normal,
+                color = ColorProvider(Color.White.copy(alpha = 0.8f))
+            )
+        )
+        Spacer(GlanceModifier.width(8.dp))
+        Text(
+            text = balance,
+            style = TextStyle(
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                color = ColorProvider(Color.White)
+            )
+        )
+    }
+}
+
+@Composable
+fun IncomeExpenseSection(
+    income: String,
+    expense: String,
+    currency: String,
+) {
+    Row(
+        GlanceModifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val resources = LocalContext.current.resources
+        // Income Pill
+        Row(
+            GlanceModifier
+                .padding(vertical = 6.dp, horizontal = 10.dp)
+                .defaultWeight()
+                .background(ImageProvider(R.drawable.income_shape_widget_background)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_income_white),
+                contentDescription = resources.getString(R.string.income),
+                modifier = GlanceModifier.size(16.dp)
+            )
+            Spacer(GlanceModifier.width(6.dp))
+            Text(
+                text = "+$income $currency",
+                style = TextStyle(
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ColorProvider(Color.White)
+                )
+            )
+        }
+        Spacer(GlanceModifier.width(8.dp))
+        // Expense Pill
+        Row(
+            GlanceModifier
+                .padding(vertical = 6.dp, horizontal = 10.dp)
+                .defaultWeight()
+                .background(ImageProvider(R.drawable.expense_shape_widget_background)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_expense),
+                contentDescription = resources.getString(R.string.expense),
+                modifier = GlanceModifier.size(16.dp)
+            )
+            Spacer(GlanceModifier.width(6.dp))
+            Text(
+                text = "-$expense $currency",
+                style = TextStyle(
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ColorProvider(Color.Black)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun BudgetStatusSection(
+    budgetRemaining: String,
+    budgetTotal: String,
+    currency: String,
+    percent: Float
+) {
+    val isOver = percent >= 1.0f
+    Row(
+        GlanceModifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp, horizontal = 10.dp)
+            .background(ImageProvider(R.drawable.budget_shape_widget_background)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            provider = ImageProvider(R.drawable.ic_widget_budget_indicator),
+            contentDescription = null,
+            modifier = GlanceModifier.size(14.dp)
+        )
+        Spacer(GlanceModifier.width(6.dp))
+        Text(
+            text = if (isOver) {
+                "Budget Exceeded • Limit: $budgetTotal $currency"
+            } else {
+                "$budgetRemaining $currency left • Limit: $budgetTotal $currency"
+            },
+            style = TextStyle(
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = ColorProvider(if (isOver) Color(0xFFFF6B6B) else Color(0xFF9E9E9E))
+            )
+        )
+    }
+}
+
+@Composable
+fun ButtonsSection(
+    onIncomeClick: Action,
+    onExpenseClick: Action,
+    onTransferClick: Action,
+) {
+    val buttons = listOf(
+        R.drawable.ic_widget_income to onIncomeClick,
+        R.drawable.ic_widget_expense to onExpenseClick,
+        R.drawable.ic_widget_transfer to onTransferClick,
+    )
+    Row(
+        GlanceModifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        buttons.forEach { (image, onClick) ->
+            WidgetClickableItem(
+                image = image,
+                onClick = onClick,
+            )
         }
     }
 }
@@ -85,114 +267,9 @@ fun RowScope.WidgetClickableItem(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            modifier = GlanceModifier.size(52.dp),
+            modifier = GlanceModifier.size(46.dp),
             provider = ImageProvider(image),
             contentDescription = null
         )
-    }
-}
-
-@Composable
-fun BalanceSection(
-    balance: String,
-    currency: String,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = GlanceModifier.padding(start = 12.dp, end = 12.dp, top = 12.dp),
-    ) {
-        Text(
-            text = currency,
-            style = TextStyle(
-                fontSize = 30.sp,
-                color = ColorProvider(Color.White)
-            )
-        )
-        Spacer(GlanceModifier.width(10.dp))
-        Text(
-            text = balance,
-            style = TextStyle(
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = ColorProvider(Color.White)
-            )
-        )
-    }
-}
-
-@Composable
-fun IncomeExpenseSection(
-    income: String,
-    expense: String,
-    currency: String,
-) {
-    Row(
-        GlanceModifier.fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val resources = LocalContext.current.resources
-        Row(
-            GlanceModifier
-                .padding(10.dp)
-                .defaultWeight()
-                .background(ImageProvider(R.drawable.income_shape_widget_background)),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Image(ImageProvider(R.drawable.ic_income_white), resources.getString((R.string.income)))
-            Text(
-                text = "$income $currency",
-                style = TextStyle(
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ColorProvider(Color.White)
-                )
-            )
-        }
-        Spacer(GlanceModifier.width(8.dp))
-        Row(
-            GlanceModifier
-                .padding(10.dp)
-                .defaultWeight()
-                .background(ImageProvider(R.drawable.expense_shape_widget_background)),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Image(
-                ImageProvider(R.drawable.ic_expense),
-                resources.getString(R.string.expense)
-            )
-            Text(
-                text = "$expense $currency",
-                style = TextStyle(
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ColorProvider(Color.Black)
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun ButtonsSection(
-    onIncomeClick: Action,
-    onExpenseClick: Action,
-    onTransferClick: Action,
-) {
-    val buttons = listOf(
-        R.drawable.ic_widget_income to onIncomeClick,
-        R.drawable.ic_widget_expense to onExpenseClick,
-        R.drawable.ic_widget_transfer to onTransferClick,
-    )
-    Row(
-        GlanceModifier.fillMaxWidth().padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        buttons.forEach { (image, onClick) ->
-            WidgetClickableItem(
-                image = image,
-                onClick = onClick,
-            )
-        }
     }
 }
