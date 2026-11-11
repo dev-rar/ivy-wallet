@@ -2,6 +2,7 @@ package com.ivy.reports.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,23 +20,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
 import com.ivy.legacy.utils.format
 import com.ivy.reports.model.CategoryBudgetReportItem
-import com.ivy.reports.model.MonthTransactionItem
 import com.ivy.reports.model.MonthlyReportData
 import com.ivy.ui.R
 import com.ivy.wallet.ui.theme.Gray
 import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.Red
-import com.ivy.wallet.ui.theme.White
 import com.ivy.wallet.ui.theme.components.ItemIconSDefaultIcon
 import com.ivy.wallet.ui.theme.components.IvyIcon
 import com.ivy.wallet.ui.theme.findContrastTextColor
+import java.util.UUID
 
 /**
  * Selected Month Overview Card designed to user's exact specification:
@@ -46,13 +45,14 @@ import com.ivy.wallet.ui.theme.findContrastTextColor
  *
  * Below it:
  * - Full Categories breakdown (All categories: with budget, spent, left to spend, and unbudgeted)
- * - Month transactions list (with Green for Income, Red for Expense)
+ * - Tapping any category opens its historical spending trend bottom sheet
  */
 @Composable
 fun SelectedMonthOverviewSection(
     monthData: MonthlyReportData,
     year: Int,
     baseCurrency: String,
+    onCategoryClick: (UUID?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isNetPositive = monthData.netSavings >= 0
@@ -164,7 +164,6 @@ fun SelectedMonthOverviewSection(
 
                 if (hasBudget) {
                     Spacer(Modifier.height(4.dp))
-                    val spentRatio = (monthData.totalBudgetSpent / monthData.totalBudgeted).toFloat().coerceIn(0f, 1f)
                     val isOver = monthData.totalBudgetSpent > monthData.totalBudgeted
                     Text(
                         text = if (isOver) {
@@ -266,43 +265,10 @@ fun SelectedMonthOverviewSection(
             for (cat in monthData.categoryBudgets) {
                 CategoryBudgetDetailCard(
                     item = cat,
-                    baseCurrency = baseCurrency
+                    baseCurrency = baseCurrency,
+                    onClick = { onCategoryClick(cat.categoryId) }
                 )
                 Spacer(Modifier.height(10.dp))
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        // --- 3. MONTHLY TRANSACTIONS LIST ---
-        Text(
-            text = "${monthData.monthName} Transactions",
-            style = UI.typo.b1.style(
-                fontWeight = FontWeight.ExtraBold,
-                color = UI.colors.pureInverse
-            )
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        if (monthData.monthTransactions.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(UI.shapes.r4)
-                    .background(UI.colors.medium.copy(alpha = 0.3f))
-                    .padding(20.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No transactions recorded for ${monthData.monthName}.",
-                    style = UI.typo.b2.style(color = Gray)
-                )
-            }
-        } else {
-            for (trn in monthData.monthTransactions) {
-                TransactionHistoryItemRow(trn = trn)
-                Spacer(Modifier.height(8.dp))
             }
         }
     }
@@ -310,12 +276,13 @@ fun SelectedMonthOverviewSection(
 
 /**
  * Category Card matching the Category page widget styling (Ivy borders, rounded shape, icon badge, progress bar)
- * displaying Category Name, Left to Spend, Budget, and Spent.
+ * displaying Category Name, Left to Spend, Budget, and Spent. Clickable to view trends.
  */
 @Composable
 private fun CategoryBudgetDetailCard(
     item: CategoryBudgetReportItem,
-    baseCurrency: String
+    baseCurrency: String,
+    onClick: () -> Unit
 ) {
     val contrastColor = findContrastTextColor(item.categoryColor)
     val leftToSpend = item.budgetAmount - item.spentAmount
@@ -330,6 +297,7 @@ private fun CategoryBudgetDetailCard(
             .clip(UI.shapes.r4)
             .border(1.5.dp, UI.colors.medium, UI.shapes.r4)
             .background(UI.colors.pure)
+            .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -441,78 +409,6 @@ private fun CategoryBudgetDetailCard(
                     )
                 }
             }
-        }
-    }
-}
-
-/**
- * Clean transaction item row with Green for Income and Red for Expense
- */
-@Composable
-private fun TransactionHistoryItemRow(
-    trn: MonthTransactionItem
-) {
-    val amountColor = if (trn.isIncome) Green else Red
-    val contrastColor = findContrastTextColor(trn.categoryColor)
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(UI.shapes.r4)
-            .border(1.dp, UI.colors.medium.copy(alpha = 0.6f), UI.shapes.r4)
-            .background(UI.colors.pure)
-            .padding(horizontal = 14.dp, vertical = 10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Category Icon + Title & Category subtitle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(trn.categoryColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ItemIconSDefaultIcon(
-                        iconName = trn.categoryIcon,
-                        defaultIcon = if (trn.isIncome) R.drawable.ic_income else R.drawable.ic_expense,
-                        tint = contrastColor
-                    )
-                }
-
-                Spacer(Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = trn.title,
-                        style = UI.typo.b2.style(
-                            fontWeight = FontWeight.Bold,
-                            color = UI.colors.pureInverse
-                        )
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "${trn.categoryName} • ${trn.dateFormatted}",
-                        style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
-                    )
-                }
-            }
-
-            // Amount formatted in Green or Red
-            Text(
-                text = trn.amountFormatted,
-                style = UI.typo.b2.style(
-                    fontWeight = FontWeight.ExtraBold,
-                    color = amountColor
-                )
-            )
         }
     }
 }

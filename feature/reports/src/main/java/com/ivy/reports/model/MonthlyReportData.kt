@@ -4,9 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import java.util.UUID
 
 @Immutable
 data class CategoryBudgetReportItem(
+    val categoryId: UUID?,
     val categoryName: String,
     val categoryColor: Color,
     val categoryIcon: String?,
@@ -18,15 +20,23 @@ data class CategoryBudgetReportItem(
 )
 
 @Immutable
-data class MonthTransactionItem(
-    val id: String,
-    val title: String,
+data class CategoryHistoricalPoint(
+    val monthName: String,
+    val monthAbbrev: String,
+    val spent: Double,
+    val budget: Double
+)
+
+@Immutable
+data class CategoryTrendSheetData(
+    val categoryId: UUID?,
     val categoryName: String,
     val categoryColor: Color,
     val categoryIcon: String?,
-    val amountFormatted: String,
-    val isIncome: Boolean,
-    val dateFormatted: String
+    val history: ImmutableList<CategoryHistoricalPoint> = persistentListOf(),
+    val averageMonthlySpent: Double = 0.0,
+    val highestMonthName: String = "",
+    val highestSpent: Double = 0.0
 )
 
 @Immutable
@@ -40,8 +50,7 @@ data class MonthlyReportData(
     val totalBudgeted: Double,
     val totalBudgetSpent: Double,
     val totalBudgetSavings: Double,
-    val categoryBudgets: ImmutableList<CategoryBudgetReportItem> = persistentListOf(),
-    val monthTransactions: ImmutableList<MonthTransactionItem> = persistentListOf()
+    val categoryBudgets: ImmutableList<CategoryBudgetReportItem> = persistentListOf()
 )
 
 @Immutable
@@ -54,5 +63,6 @@ data class YearlyReportState(
     val annualSavingsRate: Double = 0.0,
     val totalAnnualBudgetSavings: Double = 0.0,
     val monthlyData: ImmutableList<MonthlyReportData> = persistentListOf(),
-    val selectedMonthIndex: Int = (java.time.LocalDate.now().monthValue - 1).coerceIn(0, 11)
+    val selectedMonthIndex: Int = (java.time.LocalDate.now().monthValue - 1).coerceIn(0, 11),
+    val selectedCategoryTrend: CategoryTrendSheetData? = null
 )

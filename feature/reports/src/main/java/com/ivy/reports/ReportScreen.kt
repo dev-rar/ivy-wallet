@@ -49,6 +49,7 @@ import com.ivy.navigation.PieChartStatisticScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.navigation
 import com.ivy.reports.components.AnnualSummaryCard
+import com.ivy.reports.components.CategoryTrendBottomSheet
 import com.ivy.reports.components.MonthlyAreaChart
 import com.ivy.reports.components.SelectedMonthOverviewSection
 import com.ivy.reports.model.YearlyReportState
@@ -327,6 +328,9 @@ private fun BoxWithConstraintsScope.UI(
                         monthData = selectedMonth,
                         year = state.yearlyReportState.year,
                         baseCurrency = state.yearlyReportState.baseCurrency,
+                        onCategoryClick = { categoryId ->
+                            onEventHandler(ReportScreenEvent.OnSelectCategoryTrend(categoryId))
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -355,6 +359,14 @@ private fun BoxWithConstraintsScope.UI(
         },
         onTagSearch = {
             onEventHandler.invoke(ReportScreenEvent.OnTagSearch(data = it))
+        }
+    )
+
+    CategoryTrendBottomSheet(
+        trendData = state.yearlyReportState.selectedCategoryTrend,
+        baseCurrency = state.yearlyReportState.baseCurrency,
+        onDismiss = {
+            onEventHandler(ReportScreenEvent.OnDismissCategoryTrend)
         }
     )
 }

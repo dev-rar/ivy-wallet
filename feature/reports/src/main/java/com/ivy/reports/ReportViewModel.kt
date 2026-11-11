@@ -49,7 +49,8 @@ import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.toLowerCaseLocal
 import com.ivy.legacy.utils.uiThread
 import com.ivy.reports.model.CategoryBudgetReportItem
-import com.ivy.reports.model.MonthTransactionItem
+import com.ivy.reports.model.CategoryHistoricalPoint
+import com.ivy.reports.model.CategoryTrendSheetData
 import com.ivy.reports.model.MonthlyReportData
 import com.ivy.reports.model.YearlyReportState
 import com.ivy.ui.ComposeViewModel
@@ -209,6 +210,12 @@ class ReportViewModel @Inject constructor(
                 is ReportScreenEvent.OnSelectMonth -> {
                     yearlyReportState = yearlyReportState.copy(selectedMonthIndex = event.monthIndex)
                 }
+                is ReportScreenEvent.OnSelectCategoryTrend -> {
+                    loadCategoryTrend(event.categoryId)
+                }
+                is ReportScreenEvent.OnDismissCategoryTrend -> {
+                    yearlyReportState = yearlyReportState.copy(selectedCategoryTrend = null)
+                }
             }
         }
     }
@@ -315,6 +322,7 @@ class ReportViewModel @Inject constructor(
                         }
 
                     CategoryBudgetReportItem(
+                        categoryId = catId,
                         categoryName = category.name.value,
                         categoryColor = category.color.value.toComposeColor(),
                         categoryIcon = category.icon?.id,
@@ -327,46 +335,6 @@ class ReportViewModel @Inject constructor(
                 }.sortedWith(compareByDescending<CategoryBudgetReportItem> { it.hasBudget }
                     .thenByDescending { it.spentAmount })
                 .toImmutableList()
-
-                // Formatted list of all transactions for this month (Income & Expense)
-                val monthTransactions = monthTrns.mapNotNull { trn ->
-                    val isIncome = trn is Income
-                    val isExpense = trn is Expense
-                    if (!isIncome && !isExpense) return@mapNotNull null
-
-                    val trnCatId = trn.category?.value
-                    val cat = trnCatId?.let { cid -> allCategories.find { it.id.value == cid } }
-
-                    val trnVal = exchangeAct(
-                        ExchangeAct.Input(
-                            data = ExchangeData(
-                                baseCurrency = currentBaseCurrency,
-                                fromCurrency = trnCurrency(trn, currentAccounts, currentBaseCurrency)
-                            ),
-                            amount = trn.getValue()
-                        )
-                    ).orNull()?.toDouble() ?: 0.0
-
-                    val trnTitle = trn.title?.value ?: cat?.name?.value ?: if (isIncome) "Income" else "Expense"
-
-                    val dateText = try {
-                        val localD = trn.time.convertToLocal().toLocalDate()
-                        "${localD.dayOfMonth} ${localD.month.name.take(3)}"
-                    } catch (e: Exception) {
-                        ""
-                    }
-
-                    MonthTransactionItem(
-                        id = trn.id.value.toString(),
-                        title = trnTitle,
-                        categoryName = cat?.name?.value ?: "General",
-                        categoryColor = cat?.color?.value?.toComposeColor() ?: Gray,
-                        categoryIcon = cat?.icon?.id,
-                        amountFormatted = "${if (isIncome) "+" else "-"}${trnVal.format(currentBaseCurrency)} $currentBaseCurrency",
-                        isIncome = isIncome,
-                        dateFormatted = dateText
-                    )
-                }.toImmutableList()
 
                 val totalBudgeted = categoryBudgetItems.filter { it.hasBudget }.sumOf { it.budgetAmount }
                 val totalBudgetSpent = categoryBudgetItems.filter { it.hasBudget }.sumOf { it.spentAmount }
@@ -382,8 +350,7 @@ class ReportViewModel @Inject constructor(
                     totalBudgeted = totalBudgeted,
                     totalBudgetSpent = totalBudgetSpent,
                     totalBudgetSavings = totalBudgetSavings,
-                    categoryBudgets = categoryBudgetItems,
-                    monthTransactions = monthTransactions
+                    categoryBudgets = categoryBudgetItems
                 )
             }.toImmutableList()
 
@@ -410,6 +377,46 @@ class ReportViewModel @Inject constructor(
                 selectedMonthIndex = selectedIndex
             )
         }
+    }
+
+    private fun loadCategoryTrend(categoryId: UUID?) {
+        if (categoryId == null) return
+        val monthlyList = yearlyReportState.monthlyData
+        if (monthlyList.isEmpty()) return
+
+        val targetItem = monthlyList.firstNotNullOfOrNull { month ->
+            month.categoryBudgets.find { it.categoryId == categoryId }
+        } ?: return
+
+        val historyPoints = monthlyList.map { month ->
+            val catInMonth = month.categoryBudgets.find { it.categoryId == categoryId }
+            CategoryHistoricalPoint(
+                monthName = month.monthName,
+                monthAbbrev = month.monthAbbrev,
+                spent = catInMonth?.spentAmount ?: 0.0,
+                budget = catInMonth?.budgetAmount ?: 0.0
+            )
+        }.toImmutableList()
+
+        val nonZeroMonths = historyPoints.filter { it.spent > 0 }
+        val avgSpent = if (nonZeroMonths.isNotEmpty()) {
+            nonZeroMonths.sumOf { it.spent } / nonZeroMonths.size
+        } else 0.0
+
+        val maxPoint = historyPoints.maxByOrNull { it.spent }
+
+        yearlyReportState = yearlyReportState.copy(
+            selectedCategoryTrend = CategoryTrendSheetData(
+                categoryId = categoryId,
+                categoryName = targetItem.categoryName,
+                categoryColor = targetItem.categoryColor,
+                categoryIcon = targetItem.categoryIcon,
+                history = historyPoints,
+                averageMonthlySpent = avgSpent,
+                highestMonthName = maxPoint?.monthName ?: "",
+                highestSpent = maxPoint?.spent ?: 0.0
+            )
+        )
     }
 
     private suspend fun setFilter(reportFilter: ReportFilter?) {
