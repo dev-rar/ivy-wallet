@@ -69,8 +69,7 @@ android {
 
             signingConfig = signingConfigs.getByName("debug")
 
-            applicationIdSuffix = ".debug"
-            resValue("string", "app_name", "CashPulse Debug")
+            resValue("string", "app_name", "CashPulse")
         }
 
         create("demo") {
@@ -88,7 +87,6 @@ android {
 
             signingConfig = signingConfigs.getByName("debug")
 
-            applicationIdSuffix = ".debug"
             resValue("string", "app_name", "CashPulse")
         }
     }

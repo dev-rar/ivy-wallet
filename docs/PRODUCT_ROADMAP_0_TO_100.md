@@ -1,7 +1,7 @@
 # CashPulse — Product & Engineering Roadmap (0 → 100)
 
 > **App Name:** **CashPulse** (*Smart Cash Flow, Budgeting & Personal Accounting*)
-> **Package ID:** `com.cashpulse.wallet` (`.debug` for debug builds)
+> **Package ID:** `com.cashpulse.wallet`
 > **Base:** Extended commercial edition built on top of open-source Ivy Wallet (GNU GPLv3)
 > **Overall Progress:** `85 / 100` (Full CashPulse UI/Package Rebranding, Phone OTP Auth, Firestore Cloud Sync, Google Play Billing Paywall, Balance Sheet, PDF Statements, Reconciliation & Bank Auto-Tracker Built; Production Console Credentials Pending)
 
@@ -172,10 +172,9 @@
 
 ### 9.1 Firebase Console Setup (Phone OTP + Firestore Database)
 1. **Create Firebase Project**: Go to `https://console.firebase.google.com/` -> **Add project** -> name it **CashPulse** -> upgrade to the **Blaze (Pay as you go)** plan (needed by Google for SMS OTP sending).
-2. **Register Both Android Packages**:
-   - Release package: `com.cashpulse.wallet`
-   - Debug package: `com.cashpulse.wallet.debug`
-   - Add both your debug and release **SHA-1** and **SHA-256** signing fingerprints (and later your Google Play App Signing SHA-256), then download the new `google-services.json` and overwrite `app/google-services.json`.
+2. **Register Your Android Package**:
+   - Package name: `com.cashpulse.wallet` (used across debug, demo, and release builds)
+   - Add your debug and release **SHA-1** and **SHA-256** signing fingerprints (and later your Google Play App Signing SHA-256) to this single Android app in Firebase, then download the new `google-services.json` and overwrite `app/google-services.json`.
 3. **Enable Phone Number OTP**:
    - **Authentication -> Sign-in method -> Phone -> Enable**.
    - Under **Phone numbers for testing**, add test numbers (e.g., `+923001234567` with code `123456`) to test OTP free without SMS charges.
