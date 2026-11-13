@@ -321,6 +321,20 @@ class ReportViewModel @Inject constructor(
                             ).orNull()?.toDouble() ?: 0.0
                         }
 
+                    val catIncome = monthTrns.filterIsInstance<Income>()
+                        .filter { it.category != null && it.category!!.value == catId }
+                        .sumOf {
+                            exchangeAct(
+                                ExchangeAct.Input(
+                                    data = ExchangeData(
+                                        baseCurrency = currentBaseCurrency,
+                                        fromCurrency = trnCurrency(it, currentAccounts, currentBaseCurrency)
+                                    ),
+                                    amount = it.getValue()
+                                )
+                            ).orNull()?.toDouble() ?: 0.0
+                        }
+
                     CategoryBudgetReportItem(
                         categoryId = catId,
                         categoryName = category.name.value,
@@ -330,10 +344,14 @@ class ReportViewModel @Inject constructor(
                         spentAmount = spent,
                         savedAmount = if (budgetAmount > 0) maxOf(0.0, budgetAmount - spent) else 0.0,
                         isOverspent = budgetAmount > 0 && spent > budgetAmount,
-                        hasBudget = budgetAmount > 0
+                        hasBudget = budgetAmount > 0,
+                        incomeAmount = catIncome,
+                        monthlyBalance = catIncome - spent
                     )
-                }.sortedWith(compareByDescending<CategoryBudgetReportItem> { it.hasBudget }
-                    .thenByDescending { it.spentAmount })
+                }.sortedWith(
+                    compareByDescending<CategoryBudgetReportItem> { (it.spentAmount + it.incomeAmount) > 0 }
+                        .thenByDescending { it.spentAmount + it.incomeAmount }
+                )
                 .toImmutableList()
 
                 val totalBudgeted = categoryBudgetItems.filter { it.hasBudget }.sumOf { it.budgetAmount }
@@ -388,12 +406,20 @@ class ReportViewModel @Inject constructor(
             month.categoryBudgets.find { it.categoryId == categoryId }
         } ?: return
 
+        val totalCatIncome = monthlyList.sumOf { m ->
+            m.categoryBudgets.find { it.categoryId == categoryId }?.incomeAmount ?: 0.0
+        }
+        val totalCatSpent = monthlyList.sumOf { m ->
+            m.categoryBudgets.find { it.categoryId == categoryId }?.spentAmount ?: 0.0
+        }
+        val isIncome = totalCatIncome > totalCatSpent
+
         val historyPoints = monthlyList.map { month ->
             val catInMonth = month.categoryBudgets.find { it.categoryId == categoryId }
             CategoryHistoricalPoint(
                 monthName = month.monthName,
                 monthAbbrev = month.monthAbbrev,
-                spent = catInMonth?.spentAmount ?: 0.0,
+                spent = if (isIncome) (catInMonth?.incomeAmount ?: 0.0) else (catInMonth?.spentAmount ?: 0.0),
                 budget = catInMonth?.budgetAmount ?: 0.0
             )
         }.toImmutableList()
@@ -414,7 +440,8 @@ class ReportViewModel @Inject constructor(
                 history = historyPoints,
                 averageMonthlySpent = avgSpent,
                 highestMonthName = maxPoint?.monthName ?: "",
-                highestSpent = maxPoint?.spent ?: 0.0
+                highestSpent = maxPoint?.spent ?: 0.0,
+                isIncomeTrend = isIncome
             )
         )
     }

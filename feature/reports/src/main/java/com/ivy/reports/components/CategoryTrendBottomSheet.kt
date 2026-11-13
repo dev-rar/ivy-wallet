@@ -32,6 +32,7 @@ import com.ivy.legacy.utils.format
 import com.ivy.reports.model.CategoryTrendSheetData
 import com.ivy.ui.R
 import com.ivy.wallet.ui.theme.Gray
+import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.Red
 import com.ivy.wallet.ui.theme.components.ItemIconSDefaultIcon
 import com.ivy.wallet.ui.theme.findContrastTextColor
@@ -99,7 +100,7 @@ fun BoxScope.CategoryTrendBottomSheet(
                     )
                 )
                 Text(
-                    text = "Historical Spending Trend",
+                    text = if (trendData.isIncomeTrend) "Historical Income Trend" else "Historical Spending Trend",
                     style = UI.typo.c.style(
                         color = Gray,
                         fontWeight = FontWeight.Medium
@@ -156,7 +157,7 @@ fun BoxScope.CategoryTrendBottomSheet(
                     text = if (trendData.highestSpent > 0) "${trendData.highestMonthName.take(3)} (${trendData.highestSpent.format(baseCurrency)})" else "None",
                     style = UI.typo.b2.style(
                         fontWeight = FontWeight.ExtraBold,
-                        color = Red
+                        color = if (trendData.isIncomeTrend) Green else Red
                     )
                 )
             }
@@ -176,7 +177,7 @@ fun BoxScope.CategoryTrendBottomSheet(
         ) {
             Column {
                 Text(
-                    text = "Month-by-Month Spending",
+                    text = if (trendData.isIncomeTrend) "Month-by-Month Income" else "Month-by-Month Spending",
                     style = UI.typo.c.style(
                         color = Gray,
                         fontWeight = FontWeight.Bold

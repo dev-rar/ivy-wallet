@@ -4,26 +4,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
+import com.ivy.legacy.utils.balancePrefix
 import com.ivy.legacy.utils.format
 import com.ivy.reports.model.CategoryBudgetReportItem
 import com.ivy.reports.model.MonthlyReportData
@@ -31,9 +32,10 @@ import com.ivy.ui.R
 import com.ivy.wallet.ui.theme.Gray
 import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.Red
+import com.ivy.wallet.ui.theme.components.BalanceRow
 import com.ivy.wallet.ui.theme.components.ItemIconSDefaultIcon
-import com.ivy.wallet.ui.theme.components.IvyIcon
 import com.ivy.wallet.ui.theme.findContrastTextColor
+import com.ivy.wallet.ui.theme.wallet.AmountCurrencyB1
 import java.util.UUID
 
 /**
@@ -67,50 +69,23 @@ fun SelectedMonthOverviewSection(
                 .border(2.dp, UI.colors.medium, UI.shapes.r4)
                 .background(UI.colors.pure)
         ) {
-            // Header: Top Left (Month Icon + Name) | Top Right (Savings)
+            // Header: Top Left (Month Name) | Top Right (Savings)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(UI.colors.medium.copy(alpha = 0.4f), UI.shapes.r4Top)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Left: Month Icon + Name
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(UI.colors.pure),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IvyIcon(
-                            icon = R.drawable.ic_calendar,
-                            tint = UI.colors.pureInverse,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(Modifier.width(10.dp))
-
-                    Column {
-                        Text(
-                            text = monthData.monthName,
-                            style = UI.typo.b1.style(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = UI.colors.pureInverse
-                            )
-                        )
-                        Text(
-                            text = "$year",
-                            style = UI.typo.c.style(
-                                color = Gray,
-                                fontWeight = FontWeight.Medium
-                            )
-                        )
-                    }
-                }
+                // Top Left: Month Name
+                Text(
+                    text = monthData.monthName,
+                    style = UI.typo.b1.style(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = UI.colors.pureInverse
+                    )
+                )
 
                 // Top Right: Savings
                 Column(horizontalAlignment = Alignment.End) {
@@ -245,9 +220,9 @@ fun SelectedMonthOverviewSection(
 
         Spacer(Modifier.height(24.dp))
 
-        // --- 2. CATEGORIES BREAKDOWN (ALL CATEGORIES) ---
+        // --- 2. CATEGORY BREAKDOWN (ALL CATEGORIES) ---
         Text(
-            text = "${monthData.monthName} Categories Breakdown",
+            text = "Category Breakdown",
             style = UI.typo.b1.style(
                 fontWeight = FontWeight.ExtraBold,
                 color = UI.colors.pureInverse
@@ -268,15 +243,16 @@ fun SelectedMonthOverviewSection(
                     baseCurrency = baseCurrency,
                     onClick = { onCategoryClick(cat.categoryId) }
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
 }
 
 /**
- * Category Card matching the Category page widget styling (Ivy borders, rounded shape, icon badge, progress bar)
- * displaying Category Name, Left to Spend, Budget, and Spent. Clickable to view trends.
+ * Category Card matching the exact Categories page card design (DefaultCategoryCard),
+ * showing colored header with net monthly balance and footer with monthly expenses vs income.
+ * Clickable to view historical category trends.
  */
 @Composable
 private fun CategoryBudgetDetailCard(
@@ -284,131 +260,182 @@ private fun CategoryBudgetDetailCard(
     baseCurrency: String,
     onClick: () -> Unit
 ) {
-    val contrastColor = findContrastTextColor(item.categoryColor)
-    val leftToSpend = item.budgetAmount - item.spentAmount
-    val progress = if (item.budgetAmount > 0) {
-        (item.spentAmount / item.budgetAmount).toFloat().coerceIn(0f, 1f)
-    } else 0f
-    val barColor = if (item.isOverspent) Red else Green
-
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(UI.shapes.r4)
-            .border(1.5.dp, UI.colors.medium, UI.shapes.r4)
-            .background(UI.colors.pure)
+            .border(2.dp, UI.colors.medium, UI.shapes.r4)
             .clickable(onClick = onClick)
-            .padding(14.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Category icon & title
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(item.categoryColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ItemIconSDefaultIcon(
-                            iconName = item.categoryIcon,
-                            defaultIcon = R.drawable.ic_custom_category_s,
-                            tint = contrastColor
-                        )
-                    }
+        CategoryHeader(
+            item = item,
+            currency = baseCurrency,
+            contrastColor = findContrastTextColor(item.categoryColor)
+        )
 
-                    Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.height(12.dp))
 
-                    Text(
-                        text = item.categoryName,
-                        style = UI.typo.b2.style(
-                            fontWeight = FontWeight.Bold,
-                            color = UI.colors.pureInverse
-                        )
-                    )
-                }
+        CategoryAddedSpent(
+            currency = baseCurrency,
+            monthlyIncome = item.incomeAmount,
+            monthlyExpenses = item.spentAmount
+        )
 
-                // Left to spend or unbudgeted expense
-                Column(horizontalAlignment = Alignment.End) {
-                    if (item.hasBudget) {
-                        Text(
-                            text = if (item.isOverspent) "Over budget" else "Left to spend",
-                            style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
-                        )
-                        Spacer(Modifier.height(1.dp))
-                        Text(
-                            text = if (item.isOverspent) {
-                                "-${(-leftToSpend).format(baseCurrency)} $baseCurrency"
-                            } else {
-                                "${leftToSpend.format(baseCurrency)} $baseCurrency"
-                            },
-                            style = UI.typo.b2.style(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (item.isOverspent) Red else Green
-                            )
-                        )
-                    } else {
-                        Text(
-                            text = "Unbudgeted",
-                            style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
-                        )
-                        Spacer(Modifier.height(1.dp))
-                        Text(
-                            text = "-${item.spentAmount.format(baseCurrency)} $baseCurrency",
-                            style = UI.typo.b2.style(
-                                fontWeight = FontWeight.Bold,
-                                color = if (item.spentAmount > 0) Red else Gray
-                            )
-                        )
-                    }
-                }
-            }
+        Spacer(Modifier.height(12.dp))
+    }
+}
 
-            if (item.hasBudget) {
-                Spacer(Modifier.height(10.dp))
+@Composable
+private fun CategoryHeader(
+    item: CategoryBudgetReportItem,
+    currency: String,
+    contrastColor: Color,
+) {
+    val balancePrefixValue = balancePrefix(
+        income = item.incomeAmount,
+        expenses = item.spentAmount
+    )
 
-                // Progress Bar
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(UI.colors.medium)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(fraction = progress)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(barColor)
-                    )
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(item.categoryColor, UI.shapes.r4Top)
+    ) {
+        Spacer(Modifier.height(16.dp))
 
-                Spacer(Modifier.height(8.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(Modifier.width(20.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Spent: ${item.spentAmount.format(baseCurrency)} $baseCurrency",
-                        style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
-                    )
-                    Text(
-                        text = "Budget: ${item.budgetAmount.format(baseCurrency)} $baseCurrency",
-                        style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
-                    )
-                }
-            }
+            ItemIconSDefaultIcon(
+                iconName = item.categoryIcon,
+                defaultIcon = R.drawable.ic_custom_category_s,
+                tint = contrastColor
+            )
+
+            Spacer(Modifier.width(8.dp))
+
+            Text(
+                text = item.categoryName,
+                style = UI.typo.b1.style(
+                    color = contrastColor,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        BalanceRow(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            textColor = contrastColor,
+            currency = currency,
+            balance = item.monthlyBalance,
+            balanceFontSize = 30.sp,
+            currencyFontSize = 30.sp,
+            currencyUpfront = false,
+            balanceAmountPrefix = balancePrefixValue
+        )
+
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun CategoryAddedSpent(
+    monthlyIncome: Double,
+    monthlyExpenses: Double,
+    currency: String,
+    modifier: Modifier = Modifier,
+    textColor: Color = UI.colors.pureInverse,
+    dividerColor: Color = UI.colors.medium,
+    center: Boolean = true,
+    dividerSpacer: Dp? = null,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (center) {
+            Spacer(Modifier.weight(1f))
+        }
+
+        CategoryLabelAmount(
+            textColor = textColor,
+            label = stringResource(R.string.month_expenses),
+            amount = monthlyExpenses,
+            currency = currency,
+            center = center
+        )
+
+        if (center) {
+            Spacer(Modifier.weight(1f))
+        }
+
+        if (dividerSpacer != null) {
+            Spacer(modifier = Modifier.width(dividerSpacer))
+        }
+
+        // Divider
+        Spacer(
+            modifier = Modifier
+                .width(2.dp)
+                .height(48.dp)
+                .background(dividerColor, UI.shapes.rFull)
+        )
+
+        if (center) {
+            Spacer(Modifier.weight(1f))
+        }
+
+        if (dividerSpacer != null) {
+            Spacer(modifier = Modifier.width(dividerSpacer))
+        }
+
+        CategoryLabelAmount(
+            textColor = textColor,
+            label = stringResource(R.string.month_income),
+            amount = monthlyIncome,
+            currency = currency,
+            center = center
+        )
+
+        if (center) {
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun CategoryLabelAmount(
+    label: String,
+    amount: Double,
+    currency: String,
+    textColor: Color,
+    center: Boolean
+) {
+    Column(
+        horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start
+    ) {
+        Text(
+            text = label,
+            style = UI.typo.c.style(
+                color = textColor,
+                fontWeight = FontWeight.ExtraBold
+            )
+        )
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AmountCurrencyB1(
+                textColor = textColor,
+                amount = amount,
+                currency = currency
+            )
         }
     }
 }

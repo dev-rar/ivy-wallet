@@ -16,7 +16,9 @@ data class CategoryBudgetReportItem(
     val spentAmount: Double,
     val savedAmount: Double,
     val isOverspent: Boolean,
-    val hasBudget: Boolean
+    val hasBudget: Boolean,
+    val incomeAmount: Double = 0.0,
+    val monthlyBalance: Double = 0.0
 )
 
 @Immutable
@@ -36,7 +38,8 @@ data class CategoryTrendSheetData(
     val history: ImmutableList<CategoryHistoricalPoint> = persistentListOf(),
     val averageMonthlySpent: Double = 0.0,
     val highestMonthName: String = "",
-    val highestSpent: Double = 0.0
+    val highestSpent: Double = 0.0,
+    val isIncomeTrend: Boolean = false
 )
 
 @Immutable
