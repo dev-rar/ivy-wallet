@@ -1,10 +1,13 @@
 package com.ivy.settings
 
+import android.app.Activity
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,10 +18,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -38,6 +50,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ivy.base.legacy.Theme
+import com.ivy.data.cloud.CashPulseCloudAccountManager
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
 import com.ivy.design.l1_buildingBlocks.IconScale
@@ -63,6 +76,7 @@ import com.ivy.wallet.ui.theme.Gradient
 import com.ivy.wallet.ui.theme.GradientGreen
 import com.ivy.wallet.ui.theme.GradientIvy
 import com.ivy.wallet.ui.theme.Gray
+import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.MediumBlack
 import com.ivy.wallet.ui.theme.Red
 import com.ivy.wallet.ui.theme.Red3
@@ -82,6 +96,7 @@ fun BoxWithConstraintsScope.SettingsScreen() {
     val viewModel: SettingsViewModel = screenScopedViewModel()
     val uiState = viewModel.uiState()
     val rootScreen = rootScreen()
+    val activity = LocalContext.current as? Activity
 
     UI(
         currencyCode = uiState.currencyCode,
@@ -98,6 +113,37 @@ fun BoxWithConstraintsScope.SettingsScreen() {
         nameLocalAccount = uiState.name,
         startDateOfMonth = uiState.startDateOfMonth.toInt(),
         languageOptionVisible = uiState.languageOptionVisible,
+        phoneNumber = uiState.phoneNumber,
+        isPhoneVerified = uiState.isPhoneVerified,
+        isPro = uiState.isPro,
+        lastCloudSync = uiState.lastCloudSync,
+        bankAutoTrackEnabled = uiState.bankAutoTrackEnabled,
+        cloudStatusMessage = uiState.cloudStatusMessage,
+        pendingVerificationId = uiState.pendingVerificationId,
+        onSendPhoneOtp = { phone ->
+            viewModel.onEvent(SettingsEvent.SendPhoneOtp(activity, phone))
+        },
+        onVerifyPhoneOtp = { phone, otp ->
+            viewModel.onEvent(SettingsEvent.VerifyPhoneOtp(phone, otp))
+        },
+        onLogoutPhone = {
+            viewModel.onEvent(SettingsEvent.LogoutPhone)
+        },
+        onUpgradeToPro = { planId ->
+            viewModel.onEvent(SettingsEvent.UpgradeToPro(activity, planId))
+        },
+        onSyncToFirebaseCloud = {
+            viewModel.onEvent(SettingsEvent.SyncToFirebaseCloud)
+        },
+        onRestoreFromFirebaseCloud = {
+            viewModel.onEvent(SettingsEvent.RestoreFromFirebaseCloud)
+        },
+        onSetBankAutoTrack = { enabled ->
+            viewModel.onEvent(SettingsEvent.SetBankAutoTrack(enabled))
+        },
+        onClearCloudMessage = {
+            viewModel.onEvent(SettingsEvent.ClearCloudMessage)
+        },
         onSetCurrency = {
             viewModel.onEvent(SettingsEvent.SetCurrency(it))
         },
@@ -168,7 +214,22 @@ private fun BoxWithConstraintsScope.UI(
     onSetStartDateOfMonth: (Int) -> Unit = {},
     onDeleteAllUserData: () -> Unit = {},
     onDeleteCloudUserData: () -> Unit = {},
-    onSwitchLanguage: () -> Unit = {}
+    onSwitchLanguage: () -> Unit = {},
+    phoneNumber: String = "",
+    isPhoneVerified: Boolean = false,
+    isPro: Boolean = false,
+    lastCloudSync: String = "Never",
+    bankAutoTrackEnabled: Boolean = false,
+    cloudStatusMessage: String? = null,
+    pendingVerificationId: String? = null,
+    onSendPhoneOtp: (String) -> Unit = {},
+    onVerifyPhoneOtp: (String, String) -> Unit = { _, _ -> },
+    onLogoutPhone: () -> Unit = {},
+    onUpgradeToPro: (String) -> Unit = {},
+    onSyncToFirebaseCloud: () -> Unit = {},
+    onRestoreFromFirebaseCloud: () -> Unit = {},
+    onSetBankAutoTrack: (Boolean) -> Unit = {},
+    onClearCloudMessage: () -> Unit = {}
 ) {
     var currencyModalVisible by remember { mutableStateOf(false) }
     var nameModalVisible by remember { mutableStateOf(false) }
@@ -176,6 +237,8 @@ private fun BoxWithConstraintsScope.UI(
     var deleteCloudDataModalVisible by remember { mutableStateOf(false) }
     var deleteAllDataModalVisible by remember { mutableStateOf(false) }
     var deleteAllDataModalFinalVisible by remember { mutableStateOf(false) }
+    var phoneOtpDialogVisible by remember { mutableStateOf(false) }
+    var proUpgradeDialogVisible by remember { mutableStateOf(false) }
     val nav = navigation()
 
     LazyColumn(
@@ -219,7 +282,25 @@ private fun BoxWithConstraintsScope.UI(
                 )
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
+
+            CashPulseCloudAndProCard(
+                phoneNumber = phoneNumber,
+                isPhoneVerified = isPhoneVerified,
+                isPro = isPro,
+                lastCloudSync = lastCloudSync,
+                bankAutoTrackEnabled = bankAutoTrackEnabled,
+                cloudStatusMessage = cloudStatusMessage,
+                onOpenPhoneOtpDialog = { phoneOtpDialogVisible = true },
+                onOpenProUpgradeDialog = { proUpgradeDialogVisible = true },
+                onSyncToFirebase = onSyncToFirebaseCloud,
+                onRestoreFromFirebase = onRestoreFromFirebaseCloud,
+                onSetBankAutoTrack = onSetBankAutoTrack,
+                onLogoutPhone = onLogoutPhone,
+                onClearCloudMessage = onClearCloudMessage
+            )
+
+            Spacer(Modifier.height(20.dp))
 
             CurrencyButton(currency = currencyCode) {
                 currencyModalVisible = true
@@ -426,52 +507,10 @@ private fun BoxWithConstraintsScope.UI(
             ) {
                 rootScreen.shareIvyWallet()
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            SettingsPrimaryButton(
-                icon = R.drawable.github_logo,
-                iconPadding = 10.dp,
-                text = stringResource(R.string.ivy_wallet_is_opensource),
-                backgroundGradient = Gradient.solid(MediumBlack)
-            ) {
-                rootScreen.openUrlInBrowser(url = Constants.URL_IVY_WALLET_REPO)
-            }
         }
 
         item {
             SettingsSectionDivider(text = stringResource(R.string.product))
-
-            Spacer(Modifier.height(12.dp))
-
-            IvyTelegram()
-
-            Spacer(Modifier.height(16.dp))
-
-            HelpCenter()
-
-            Spacer(Modifier.height(12.dp))
-
-            Releases(nav = nav)
-
-            Spacer(Modifier.height(12.dp))
-
-            ReportBug()
-
-            Spacer(Modifier.height(12.dp))
-
-            val rootActivity = rootScreen()
-            RequestFeature {
-                rootActivity.openUrlInBrowser(Constants.URL_GITHUB_NEW_ISSUE)
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            ContactSupport()
-
-            Spacer(Modifier.height(12.dp))
-
-            Contributors(nav = nav)
 
             Spacer(Modifier.height(12.dp))
 
@@ -575,6 +614,35 @@ private fun BoxWithConstraintsScope.UI(
         description = stringResource(R.string.exporting_data_description),
         visible = progressState
     )
+
+    if (phoneOtpDialogVisible) {
+        PhoneOtpVerificationDialog(
+            initialPhone = phoneNumber,
+            otpSent = pendingVerificationId != null,
+            statusMessage = cloudStatusMessage,
+            onSendOtp = onSendPhoneOtp,
+            onVerifyOtp = { phone, otp ->
+                onVerifyPhoneOtp(phone, otp)
+                phoneOtpDialogVisible = false
+            },
+            onDismiss = {
+                phoneOtpDialogVisible = false
+            }
+        )
+    }
+
+    if (proUpgradeDialogVisible) {
+        ProUpgradeDialog(
+            isPro = isPro,
+            onSelectPlan = { planId ->
+                onUpgradeToPro(planId)
+                proUpgradeDialogVisible = false
+            },
+            onDismiss = {
+                proUpgradeDialogVisible = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -1185,6 +1253,358 @@ private fun Preview(theme: Theme = Theme.LIGHT) {
             languageOptionVisible = true
         )
     }
+}
+
+@Composable
+@Suppress("LongParameterList")
+private fun CashPulseCloudAndProCard(
+    phoneNumber: String,
+    isPhoneVerified: Boolean,
+    isPro: Boolean,
+    lastCloudSync: String,
+    bankAutoTrackEnabled: Boolean,
+    cloudStatusMessage: String?,
+    onOpenPhoneOtpDialog: () -> Unit,
+    onOpenProUpgradeDialog: () -> Unit,
+    onSyncToFirebase: () -> Unit,
+    onRestoreFromFirebase: () -> Unit,
+    onSetBankAutoTrack: (Boolean) -> Unit,
+    onLogoutPhone: () -> Unit,
+    onClearCloudMessage: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(UI.shapes.r3)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color(0xFF1B1D24), Color(0xFF2A2E39))
+                )
+            )
+            .border(1.dp, White.copy(alpha = 0.14f), UI.shapes.r3)
+            .padding(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "CASHPULSE CLOUD & PRO",
+                    style = UI.typo.c.style(
+                        color = White.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (isPhoneVerified) phoneNumber else "Phone Not Registered",
+                    style = UI.typo.nB1.style(
+                        color = White,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(UI.shapes.rFull)
+                    .background(
+                        if (isPro) Green.copy(alpha = 0.2f) else Color(0xFFE6C365).copy(alpha = 0.2f)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = if (isPro) "PRO ACTIVE" else "FREE TIER",
+                    style = UI.typo.nC.style(
+                        color = if (isPro) Green else Color(0xFFE6C365),
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "Offline-first local DB • Firebase sync: $lastCloudSync",
+            style = UI.typo.c.style(
+                color = White.copy(alpha = 0.65f),
+                fontWeight = FontWeight.Medium
+            )
+        )
+
+        if (!cloudStatusMessage.isNullOrBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(White.copy(alpha = 0.08f))
+                    .clickable { onClearCloudMessage() }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    modifier = Modifier.weight(1f),
+                    text = cloudStatusMessage,
+                    style = UI.typo.c.style(
+                        color = Green,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = onOpenPhoneOtpDialog,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = White.copy(alpha = 0.12f),
+                    contentColor = White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = if (isPhoneVerified) "Phone OTP ✓" else "Register Phone",
+                    style = UI.typo.c.style(color = White, fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = onOpenProUpgradeDialog,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isPro) Green.copy(alpha = 0.25f) else Green,
+                    contentColor = White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = if (isPro) "Pro Plan ✓" else "Upgrade (GPay)",
+                    style = UI.typo.c.style(color = White, fontWeight = FontWeight.ExtraBold)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = onSyncToFirebase,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = White.copy(alpha = 0.1f),
+                    contentColor = White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = "Backup Firebase",
+                    style = UI.typo.c.style(color = White, fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = onRestoreFromFirebase,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = White.copy(alpha = 0.1f),
+                    contentColor = White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(
+                    text = "Restore Cloud",
+                    style = UI.typo.c.style(color = White, fontWeight = FontWeight.Bold)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(White.copy(alpha = 0.05f))
+                .clickable { onSetBankAutoTrack(!bankAutoTrackEnabled) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Auto-Track Bank Alerts (Pro)",
+                    style = UI.typo.b2.style(color = White, fontWeight = FontWeight.Bold)
+                )
+                Text(
+                    text = "Parse bank SMS/app notifications locally",
+                    style = UI.typo.c.style(color = White.copy(alpha = 0.6f), fontWeight = FontWeight.Normal)
+                )
+            }
+            IvySwitch(
+                enabled = bankAutoTrackEnabled,
+                onEnabledChange = onSetBankAutoTrack
+            )
+        }
+
+        if (isPhoneVerified) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .clickable { onLogoutPhone() }
+                    .padding(top = 4.dp),
+                text = "Sign out phone session",
+                style = UI.typo.c.style(
+                    color = Red3,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun PhoneOtpVerificationDialog(
+    initialPhone: String,
+    otpSent: Boolean,
+    statusMessage: String?,
+    onSendOtp: (String) -> Unit,
+    onVerifyOtp: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var phoneInput by remember { mutableStateOf(if (initialPhone.isNotBlank()) initialPhone else "+") }
+    var otpInput by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Phone Registration (OTP)",
+                style = UI.typo.b1.style(fontWeight = FontWeight.ExtraBold)
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Your phone number is your permanent CashPulse identity for Firebase Cloud backups & restore.",
+                    style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = phoneInput,
+                    onValueChange = { phoneInput = it },
+                    label = { Text("Phone Number (+CountryCode...)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = otpInput,
+                    onValueChange = { if (it.length <= 6) otpInput = it.filter { ch -> ch.isDigit() } },
+                    label = { Text("6-Digit SMS OTP") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (!statusMessage.isNullOrBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = statusMessage,
+                        style = UI.typo.c.style(color = Green, fontWeight = FontWeight.SemiBold)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (otpInput.length == 6) {
+                Button(onClick = { onVerifyOtp(phoneInput, otpInput) }) {
+                    Text("Verify OTP")
+                }
+            } else {
+                Button(onClick = { onSendOtp(phoneInput) }) {
+                    Text(if (otpSent) "Resend OTP" else "Send OTP")
+                }
+            }
+        },
+        dismissButton = {
+            Row {
+                if (otpSent) {
+                    TextButton(onClick = { onSendOtp(phoneInput) }) {
+                        Text("Resend")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ProUpgradeDialog(
+    isPro: Boolean,
+    onSelectPlan: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isPro) "CashPulse Pro Active" else "Upgrade to CashPulse Pro",
+                style = UI.typo.b1.style(fontWeight = FontWeight.ExtraBold)
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Pay securely via Google Pay or Credit/Debit Card (settled via Google Play Merchant Wallet). Includes permanent Firebase Cloud Sync, Bank Alert Auto-Tracker, Balance Sheet & PDF Statements.",
+                    style = UI.typo.c.style(color = Gray, fontWeight = FontWeight.Medium)
+                )
+                Spacer(Modifier.height(14.dp))
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_MONTHLY) }
+                ) {
+                    Text("Monthly Pro — \$2.99 / mo (Google Pay / Card)")
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_YEARLY) }
+                ) {
+                    Text("Yearly Pro — \$19.99 / yr (Save 44%)")
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_LIFETIME) }
+                ) {
+                    Text("Lifetime Pro — \$39.99 One-Time")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 /** For screenshot testing */

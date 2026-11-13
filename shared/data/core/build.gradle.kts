@@ -14,6 +14,9 @@ dependencies {
 
     api(libs.datastore)
     implementation(libs.bundles.ktor)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.google.play.billing)
 
     testImplementation(projects.shared.data.modelTesting)
     androidTestImplementation(libs.bundles.integration.testing)

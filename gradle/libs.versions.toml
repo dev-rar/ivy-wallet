@@ -113,6 +113,8 @@ google-play-review = { module = "com.google.android.play:review-ktx", version = 
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics", version = "19.0.3" }
 firebase-crashlytics-gradle-plugin = { module = "com.google.firebase:firebase-crashlytics-gradle", version = "3.0.2" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore", version = "25.1.4" }
+firebase-auth = { module = "com.google.firebase:firebase-auth", version = "23.0.0" }
+google-play-billing = { module = "com.android.billingclient:billing-ktx", version = "7.0.0" }
 
 # AndroidX
 androidx-security = { module = "androidx.security:security-crypto", version = "1.0.0" }

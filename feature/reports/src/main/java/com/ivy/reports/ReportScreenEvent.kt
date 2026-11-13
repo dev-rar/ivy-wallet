@@ -19,6 +19,7 @@ sealed class ReportScreenEvent {
     data class OnSelectMonth(val monthIndex: Int) : ReportScreenEvent()
     data class OnSelectCategoryTrend(val categoryId: java.util.UUID?) : ReportScreenEvent()
     data object OnDismissCategoryTrend : ReportScreenEvent()
+    data class OnExportPdfStatement(val context: Context) : ReportScreenEvent()
 
     @Deprecated("Uses legacy Transaction")
     data class SkipTransactionsLegacy(val transactions: List<com.ivy.base.legacy.Transaction>) :

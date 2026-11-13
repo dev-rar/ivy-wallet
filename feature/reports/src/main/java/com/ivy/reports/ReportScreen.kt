@@ -55,6 +55,7 @@ import com.ivy.navigation.PieChartStatisticScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.navigation
 import com.ivy.reports.components.AnnualSummaryCard
+import com.ivy.reports.components.BalanceSheetCard
 import com.ivy.reports.components.CategoryTrendBottomSheet
 import com.ivy.reports.components.MonthlyAreaChart
 import com.ivy.reports.components.SelectedMonthOverviewSection
@@ -308,6 +309,27 @@ private fun BoxWithConstraintsScope.UI(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
+                                .clip(UI.shapes.rFull)
+                                .background(Green.copy(alpha = 0.16f))
+                                .clickable {
+                                    onEventHandler(ReportScreenEvent.OnExportPdfStatement(context))
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "PDF",
+                                style = UI.typo.c.style(
+                                    color = Green,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            )
+                        }
+
+                        Spacer(Modifier.width(10.dp))
+
+                        Box(
+                            modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(UI.colors.medium)
@@ -371,6 +393,14 @@ private fun BoxWithConstraintsScope.UI(
                     onNextYear = {
                         onEventHandler(ReportScreenEvent.OnSelectYear(state.yearlyReportState.year + 1))
                     },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                BalanceSheetCard(
+                    balanceSheet = state.yearlyReportState.balanceSheet,
+                    baseCurrency = state.yearlyReportState.baseCurrency,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 

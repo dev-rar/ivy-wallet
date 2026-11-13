@@ -205,26 +205,30 @@ class BackupDataUseCase @Inject constructor(
         onProgress: suspend (Double) -> Unit = {},
         clearCacheDir: Boolean = false,
     ): ImportResult {
-        val modifiedJsonString = accommodateExistingAccountsAndCategories(jsonString)
-        val ivyWalletCompleteData = modifiedJsonString?.let {
-            json.decodeFromString<IvyWalletCompleteData>(it)
-        } ?: error("Failed to parse backup JSON.")
+        try {
+            val modifiedJsonString = accommodateExistingAccountsAndCategories(jsonString)
+            val ivyWalletCompleteData = modifiedJsonString?.let {
+                json.decodeFromString<IvyWalletCompleteData>(it)
+            } ?: error("Failed to parse backup JSON.")
 
-        onProgress(0.4)
-        insertDataToDb(completeData = ivyWalletCompleteData, onProgress = onProgress)
-        onProgress(1.0)
+            onProgress(0.4)
+            insertDataToDb(completeData = ivyWalletCompleteData, onProgress = onProgress)
+            onProgress(1.0)
 
-        if (clearCacheDir) {
-            clearCacheDir()
+            if (clearCacheDir) {
+                clearCacheDir()
+            }
+
+            return ImportResult(
+                rowsFound = ivyWalletCompleteData.transactions.size,
+                transactionsImported = ivyWalletCompleteData.transactions.size,
+                accountsImported = ivyWalletCompleteData.accounts.size,
+                categoriesImported = ivyWalletCompleteData.categories.size,
+                failedRows = persistentListOf()
+            )
+        } finally {
+            dataObserver.post(DataWriteEvent.AllDataChange)
         }
-
-        return ImportResult(
-            rowsFound = ivyWalletCompleteData.transactions.size,
-            transactionsImported = ivyWalletCompleteData.transactions.size,
-            accountsImported = ivyWalletCompleteData.accounts.size,
-            categoriesImported = ivyWalletCompleteData.categories.size,
-            failedRows = persistentListOf()
-        )
     }
 
     private suspend fun accommodateExistingAccountsAndCategories(jsonString: String?): String? {

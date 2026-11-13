@@ -1,6 +1,7 @@
 package com.ivy.reports
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -10,23 +11,29 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.viewModelScope
+import arrow.core.toOption
 import com.ivy.base.legacy.LegacyTransaction
 import com.ivy.base.legacy.TransactionHistoryItem
 import com.ivy.base.legacy.stringRes
+import com.ivy.base.model.LoanRecordType
 import com.ivy.base.model.TransactionType
 import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
 import com.ivy.base.time.convertToLocal
+import com.ivy.data.db.dao.read.LoanDao
+import com.ivy.data.db.dao.read.LoanRecordDao
 import com.ivy.data.model.Category
 import com.ivy.data.model.CategoryId
 import com.ivy.data.model.Expense
 import com.ivy.data.model.Income
+import com.ivy.data.model.LoanType
 import com.ivy.data.model.Tag
 import com.ivy.data.model.Transaction
 import com.ivy.data.model.TransactionId
 import com.ivy.data.model.Transfer
 import com.ivy.data.model.primitive.ColorInt
 import com.ivy.data.model.primitive.NotBlankTrimmedString
+import com.ivy.data.repository.AccountRepository
 import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.TagRepository
 import com.ivy.data.repository.TransactionRepository
@@ -48,6 +55,8 @@ import com.ivy.legacy.utils.scopedIOThread
 import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.toLowerCaseLocal
 import com.ivy.legacy.utils.uiThread
+import com.ivy.reports.export.PdfStatementExporter
+import com.ivy.reports.model.BalanceSheetSummary
 import com.ivy.reports.model.CategoryBudgetReportItem
 import com.ivy.reports.model.CategoryHistoricalPoint
 import com.ivy.reports.model.CategoryTrendSheetData
@@ -56,6 +65,7 @@ import com.ivy.reports.model.YearlyReportState
 import com.ivy.ui.ComposeViewModel
 import com.ivy.ui.R
 import com.ivy.wallet.domain.action.account.AccountsAct
+import com.ivy.wallet.domain.action.account.CalcAccBalanceAct
 import com.ivy.wallet.domain.action.budget.BudgetsAct
 import com.ivy.wallet.domain.action.exchange.ExchangeAct
 import com.ivy.wallet.domain.action.settings.BaseCurrencyAct
@@ -106,7 +116,11 @@ class ReportViewModel @Inject constructor(
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
     private val features: Features,
-    private val budgetsAct: BudgetsAct
+    private val budgetsAct: BudgetsAct,
+    private val accountRepository: AccountRepository,
+    private val calcAccBalanceAct: CalcAccBalanceAct,
+    private val loanDao: LoanDao,
+    private val loanRecordDao: LoanRecordDao
 ) : ComposeViewModel<ReportScreenState, ReportScreenEvent>() {
     private val unSpecifiedCategory =
         Category(
@@ -215,6 +229,9 @@ class ReportViewModel @Inject constructor(
                 }
                 is ReportScreenEvent.OnDismissCategoryTrend -> {
                     yearlyReportState = yearlyReportState.copy(selectedCategoryTrend = null)
+                }
+                is ReportScreenEvent.OnExportPdfStatement -> {
+                    exportPdfStatement(event.context)
                 }
             }
         }
@@ -382,6 +399,7 @@ class ReportViewModel @Inject constructor(
 
             val currentMonthIndex = (LocalDate.now().monthValue - 1).coerceIn(0, 11)
             val selectedIndex = if (year == LocalDate.now().year) currentMonthIndex else 11
+            val balanceSheet = computeBalanceSheet(currentBaseCurrency, currentAccounts)
 
             yearlyReportState = YearlyReportState(
                 year = year,
@@ -392,8 +410,113 @@ class ReportViewModel @Inject constructor(
                 annualSavingsRate = annualSavingsRate,
                 totalAnnualBudgetSavings = totalAnnualBudgetSavings,
                 monthlyData = monthlyList,
-                selectedMonthIndex = selectedIndex
+                selectedMonthIndex = selectedIndex,
+                balanceSheet = balanceSheet
             )
+        }
+    }
+
+    private suspend fun computeBalanceSheet(
+        baseCurrencyCode: String,
+        legacyAccounts: List<Account>
+    ): BalanceSheetSummary {
+        val domainAccounts = accountRepository.findAll()
+        var cashAndBankAssets = 0.0
+        var creditAndOverdraftLiabilities = 0.0
+
+        for (domainAcc in domainAccounts) {
+            val rawBalance = calcAccBalanceAct(
+                CalcAccBalanceAct.Input(account = domainAcc)
+            ).balance
+            val balanceInBase = exchangeAct(
+                ExchangeAct.Input(
+                    data = ExchangeData(
+                        baseCurrency = baseCurrencyCode,
+                        fromCurrency = domainAcc.asset.code.toOption()
+                    ),
+                    amount = rawBalance
+                )
+            ).orNull()?.toDouble() ?: rawBalance.toDouble()
+
+            if (balanceInBase >= 0.0) {
+                cashAndBankAssets += balanceInBase
+            } else {
+                creditAndOverdraftLiabilities += kotlin.math.abs(balanceInBase)
+            }
+        }
+
+        val allLoans = loanDao.findAll()
+        val allLoanRecords = loanRecordDao.findAll()
+        var accountsReceivable = 0.0
+        var accountsPayable = 0.0
+
+        for (loan in allLoans) {
+            var remaining = loan.amount
+            val records = allLoanRecords.filter { it.loanId == loan.id }
+            for (record in records) {
+                when (record.loanRecordType) {
+                    LoanRecordType.INCREASE -> remaining += record.amount
+                    LoanRecordType.DECREASE -> remaining -= record.amount
+                }
+            }
+            val positiveRemaining = maxOf(0.0, remaining)
+            val loanCurrency = legacyAccounts.find { it.id == loan.accountId }?.currency ?: baseCurrencyCode
+            val remainingInBase = exchangeAct(
+                ExchangeAct.Input(
+                    data = ExchangeData(
+                        baseCurrency = baseCurrencyCode,
+                        fromCurrency = loanCurrency.toOption()
+                    ),
+                    amount = positiveRemaining.toBigDecimal()
+                )
+            ).orNull()?.toDouble() ?: positiveRemaining
+
+            when (loan.type) {
+                LoanType.LEND -> accountsReceivable += remainingInBase
+                LoanType.BORROW -> accountsPayable += remainingInBase
+            }
+        }
+
+        val totalAssets = cashAndBankAssets + accountsReceivable
+        val totalLiabilities = creditAndOverdraftLiabilities + accountsPayable
+        val netWorth = totalAssets - totalLiabilities
+        val debtToAssetRatio = if (totalAssets > 0.0) (totalLiabilities / totalAssets) * 100.0 else 0.0
+
+        return BalanceSheetSummary(
+            cashAndBankAssets = cashAndBankAssets,
+            accountsReceivable = accountsReceivable,
+            totalAssets = totalAssets,
+            creditAndOverdraftLiabilities = creditAndOverdraftLiabilities,
+            accountsPayable = accountsPayable,
+            totalLiabilities = totalLiabilities,
+            netWorth = netWorth,
+            debtToAssetRatio = debtToAssetRatio
+        )
+    }
+
+    private fun exportPdfStatement(context: Context) {
+        val currentState = yearlyReportState
+        ivyContext.createNewFile("CashPulse-Statement-${currentState.year}.pdf") { fileUri ->
+            viewModelScope.launch(Dispatchers.IO) {
+                loading = true
+                try {
+                    context.contentResolver.openOutputStream(fileUri)?.use { stream ->
+                        PdfStatementExporter.exportToOutputStream(currentState, stream)
+                    }
+                    uiThread {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/pdf"
+                            putExtra(Intent.EXTRA_STREAM, fileUri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(
+                            Intent.createChooser(shareIntent, "Share CashPulse Financial Statement")
+                        )
+                    }
+                } finally {
+                    loading = false
+                }
+            }
         }
     }
 

@@ -57,6 +57,18 @@ data class MonthlyReportData(
 )
 
 @Immutable
+data class BalanceSheetSummary(
+    val cashAndBankAssets: Double = 0.0,
+    val accountsReceivable: Double = 0.0,
+    val totalAssets: Double = 0.0,
+    val creditAndOverdraftLiabilities: Double = 0.0,
+    val accountsPayable: Double = 0.0,
+    val totalLiabilities: Double = 0.0,
+    val netWorth: Double = 0.0,
+    val debtToAssetRatio: Double = 0.0
+)
+
+@Immutable
 data class YearlyReportState(
     val year: Int = java.time.LocalDate.now().year,
     val baseCurrency: String = "",
@@ -67,5 +79,6 @@ data class YearlyReportState(
     val totalAnnualBudgetSavings: Double = 0.0,
     val monthlyData: ImmutableList<MonthlyReportData> = persistentListOf(),
     val selectedMonthIndex: Int = (java.time.LocalDate.now().monthValue - 1).coerceIn(0, 11),
-    val selectedCategoryTrend: CategoryTrendSheetData? = null
+    val selectedCategoryTrend: CategoryTrendSheetData? = null,
+    val balanceSheet: BalanceSheetSummary = BalanceSheetSummary()
 )

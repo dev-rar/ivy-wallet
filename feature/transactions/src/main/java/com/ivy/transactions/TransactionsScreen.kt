@@ -2,6 +2,8 @@ package com.ivy.transactions
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
@@ -636,25 +638,53 @@ private fun Header(
             showCategoryModal = showCategoryModal
         )
 
-        BalanceRow(
+        Row(
             modifier = Modifier
-                .padding(start = 32.dp)
-                .testTag("balance")
-                .clickableNoIndication(rememberInteractionSource()) {
-                    onBalanceClick()
-                },
-            textColor = contrastColor,
-            currency = currency,
-            balance = balance,
-            balanceAmountPrefix = if (category != null) {
-                balancePrefix(
-                    income = income,
-                    expenses = expenses
-                )
-            } else {
-                null
+                .fillMaxWidth()
+                .padding(start = 32.dp, end = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            BalanceRow(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("balance")
+                    .clickableNoIndication(rememberInteractionSource()) {
+                        onBalanceClick()
+                    },
+                textColor = contrastColor,
+                currency = currency,
+                balance = balance,
+                balanceAmountPrefix = if (category != null) {
+                    balancePrefix(
+                        income = income,
+                        expenses = expenses
+                    )
+                } else {
+                    null
+                }
+            )
+
+            if (account != null) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(UI.shapes.rFull)
+                        .background(contrastColor.copy(alpha = 0.16f))
+                        .clickable { onBalanceClick() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Reconcile",
+                        style = UI.typo.c.style(
+                            color = contrastColor,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    )
+                }
             }
-        )
+        }
 
         if (currency != baseCurrency && balanceBaseCurrency != null) {
             BalanceRowMedium(

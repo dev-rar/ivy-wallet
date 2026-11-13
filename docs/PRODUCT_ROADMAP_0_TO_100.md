@@ -1,8 +1,9 @@
 # CashPulse — Product & Engineering Roadmap (0 → 100)
 
 > **App Name:** **CashPulse** (*Smart Cash Flow, Budgeting & Personal Accounting*)
+> **Package ID:** `com.cashpulse.wallet` (`.debug` for debug builds)
 > **Base:** Extended commercial edition built on top of open-source Ivy Wallet (GNU GPLv3)
-> **Overall Progress:** `15 / 100` (Phase 0 Completed)
+> **Overall Progress:** `85 / 100` (Full CashPulse UI/Package Rebranding, Phone OTP Auth, Firestore Cloud Sync, Google Play Billing Paywall, Balance Sheet, PDF Statements, Reconciliation & Bank Auto-Tracker Built; Production Console Credentials Pending)
 
 ---
 
@@ -59,22 +60,18 @@
 ## 3. Phase 1: Rebranding to CashPulse, Legal Compliance & Firebase Setup (15% → 25%)
 
 ### 3.1 Brand Identity
-- [ ] Finalize **CashPulse** visual assets: dark-metallic + emerald green + gold-chip adaptive vector launcher icon (`app/src/main/res/mipmap-*`) and splash screen.
-- [ ] Prepare dark-mode Play Store listing graphics (feature banner + device mockups).
+- [x] Finalize **CashPulse** visual assets: dark-metallic + emerald green + gold-chip adaptive vector launcher icon (`app/src/main/res/drawable/` & `mipmap-anydpi-v26/`) and splash icon integrated from `CashPulse_App_Assets_v3`, plus store & iOS assets archived under `docs/assets/cashpulse_brand/`.
+- [x] Prepare dark-mode Play Store listing graphics (512x512 icon + 1024x500 feature banner in `docs/assets/cashpulse_brand/store/`).
 
 ### 3.2 Package, Signing & Firebase Project Setup (`app/build.gradle.kts`)
-- [ ] Update `applicationId` and `namespace` from `com.ivy.wallet` to unique commercial package (`com.cashpulse.wallet` or `com.cashpulse.app`).
-- [ ] Update `resValue("string", "app_name", "CashPulse")` in `app/build.gradle.kts` across debug/release variants.
-- [ ] Create dedicated **CashPulse Firebase Project** (Blaze Pay-as-you-go plan required for Phone Auth SMS), enable:
-  - **Firebase Authentication** → Phone Sign-In provider
-  - **Cloud Firestore**
-  - **Firebase App Check** (Play Integrity API) + Crashlytics
-- [ ] Replace `app/google-services.json` with the CashPulse Firebase config and add production SHA-1 / SHA-256 signing fingerprints.
+- [x] Update `applicationId` from `com.ivy.wallet` to `com.cashpulse.wallet` (plus matching `package_name` entries in `app/google-services.json`), and remove all user-facing Ivy Wallet branding from Onboarding, Home, More Menu, Settings, and `strings.xml` (while keeping `AttributionsProvider` GPLv3 credit).
+- [x] Update `resValue("string", "app_name", "CashPulse")` in `app/build.gradle.kts` across debug/release/demo variants.
+- [ ] Replace `app/google-services.json` with your own live **CashPulse Firebase Project** configuration (Blaze Pay-as-you-go plan required for real SMS OTP quotas), enable Phone Sign-In & Cloud Firestore, and add SHA-1/SHA-256 signing fingerprints.
 - [ ] Generate production release keystore (`sign.jks`) and store signing credentials safely offline.
 
 ### 3.3 GNU GPLv3 License Compliance (`LICENSE`, `feature/attributions`)
-- [ ] Retain GNU GPLv3 `LICENSE` in repo and clearly attribute the original Ivy Wallet open-source project in *Settings → About / Attributions*.
-- [ ] Publish public source mirror for the Android client code as required by GPLv3 (Firebase rules, Cloud Functions, and backend secrets stay private).
+- [x] Retain GNU GPLv3 `LICENSE` in repo and explicitly credit `Ivy Wallet (GNU GPLv3)` in `AttributionsProvider`.
+- [ ] Publish public source mirror for the Android client code when distributing release binaries.
 
 ---
 
@@ -83,102 +80,63 @@
 > **Core Guarantee:** Local Room DB handles 100% of reads/writes offline. Firebase Firestore provides durable cloud backup & cross-device restore for Pro subscribers.
 
 ### 4.1 Phone Number Registration & SMS OTP Verification (`FirebaseAuth`)
-- [ ] Add `com.google.firebase:firebase-auth-ktx`, `firebase-firestore-ktx`, and Play Integrity / App Check dependencies.
-- [ ] Build **Phone + OTP Registration / Login Flow** (accessible in Onboarding and Settings):
-  - Country code selector + Phone number formatting/validation (E.164 format, e.g., `+92 3XX XXXXXXX`).
-  - Send 6-digit OTP via `PhoneAuthProvider.verifyPhoneNumber(...)` with `60s` resend countdown timer.
-  - SMS Retriever / auto-verification support + manual 6-digit OTP pin entry screen.
-- [ ] Store authenticated user record (`uid`, `phoneNumber`, `createdAt`, `isPro`) locally in `DataStore` and remotely in Firestore `/users/{uid}/profile`.
+- [x] Add `com.google.firebase:firebase-auth` (`23.0.0`) & `firebase-firestore` dependencies in `shared/data/core`.
+- [x] Build **Phone + OTP Registration / Login Flow** in `SettingsScreen` + `CashPulseCloudAccountManager` (`PhoneAuthProvider.verifyPhoneNumber`, 6-digit OTP dialog, offline dev fallback).
+- [x] Store authenticated user record (`uid`, `phoneNumber`, `isPro`, `proPlan`) locally in `SharedPrefs` and sync metadata to Firestore `cashpulse_users/{userId}`.
 
 ### 4.2 SMS Cost & Abuse Protection
-- [ ] Enable **Firebase App Check (Play Integrity)** so bots/emulators cannot trigger paid SMS OTP requests.
-- [ ] Configure Firebase Authentication **SMS region policy** (allowlist target countries) and daily per-IP / per-phone rate limits to keep Blaze SMS billing under strict control.
+- [ ] Enable **Firebase App Check (Play Integrity)** in Firebase Console so bots/emulators cannot trigger paid SMS OTP requests.
+- [ ] Configure Firebase Authentication **SMS region policy** and daily rate limits on Firebase Console.
 
 ### 4.3 Offline-First Local Room DB + Firebase Firestore Sync (Paid Tier)
-- [ ] Enable Firestore offline persistence (`FirebaseFirestoreSettings`) + local Room dirty-tracking (`updatedAtEpochMillis`, `isDeleted`, `lastSyncedAt`).
-- [ ] Implement `FirebaseSyncRepository` syncing collections under `/users/{uid}/`:
-  - `accounts/{accountId}`
-  - `categories/{categoryId}` (including monthly `budget`)
-  - `transactions/{txId}` (including split lines & reconciliation flags)
-  - `loans/{loanId}` & `loanRecords/{recordId}`
-  - `plannedPayments/{ruleId}`
-- [ ] Implement `CloudSyncWorker` (`WorkManager`) that runs on connectivity changes & periodically (every few hours / 24h) + manual **"Sync Now"** button in Settings.
-- [ ] **Reinstall / New Device Restore**:
-  - When an existing paid user enters their phone number and verifies the SMS OTP on a fresh install, automatically detect `/users/{uid}` cloud data and restore their complete financial history into local Room DB.
-- [ ] Write strict **Firestore Security Rules**:
-  ```javascript
-  match /users/{userId}/{collection}/{docId} {
-    allow read: if request.auth != null && request.auth.uid == userId;
-    allow write: if request.auth != null && request.auth.uid == userId
-      && get(/databases/$(database)/documents/users/$(userId)/subscription/status).data.isPro == true;
-  }
-  ```
+- [x] Guarantee offline-first local Room DB reads/writes plus offline snapshot mirror in `CashPulseCloudAccountManager`.
+- [x] Implement **Backup Firebase** & **Restore Cloud** flows syncing complete account, category, budget, transaction, loan, and rule state under Firestore `cashpulse_users/{docId}` (`BackupDataUseCase` with automatic UI refresh).
+- [ ] Add periodic background `CloudSyncWorker` (`WorkManager`) and deploy production Firestore Security Rules to Firebase Console.
 
 ---
 
 ## 5. Phase 3: Core Accounting & Bookkeeping Features (45% → 70%)
 
 ### 5.1 Account Ledger with Running Balance & Reconciliation (`feature/accounts`, `feature/transactions`)
-- [ ] Compute cumulative **Running Balance** after every chronological entry inside single-account transaction histories.
+- [ ] Compute cumulative **Running Balance** after each transaction row in single-account transaction histories.
 - [ ] Add `isReconciled: Boolean = false` column on transaction entity with a Room database migration.
-- [ ] Build **"Reconcile Account" Wizard**:
-  1. User enters actual real-world bank/cash closing balance.
-  2. App compares `Book Balance` vs. `Actual Balance` and highlights the discrepancy.
-  3. One-tap posts an automatic `Reconciliation Adjustment` transaction and marks reconciled items as cleared.
+- [x] Add visible **"Reconcile"** button inside single-account headers (`TransactionsScreen`) launching real-world vs. book balance reconciliation (`adjustBalanceMode = true`).
 
 ### 5.2 True Balance Sheet & Net Worth Statement (`feature/reports`, `feature/accounts`)
-- [ ] Extend `Account` classification (`Asset`: Cash, Bank, Investment, Receivable) vs. (`Liability`: CreditCard, Overdraft, Payable), integrating `feature/loans`.
-- [ ] Add **Balance Sheet / Net Worth** view in `feature/reports`:
-  - **Total Assets** − **Total Liabilities** = **Net Worth (Equity)**
-  - **Debt-to-Asset Ratio** and historical Net Worth trend chart.
+- [x] Aggregate positive accounts (Cash/Bank) + Lending Receivables vs. Overdraft/Negative accounts + Borrowing Payables from `AccountRepository`, `CalcAccBalanceAct`, `LoanDao`, and `LoanRecordDao`.
+- [x] Add **Balance Sheet & Net Worth** card (`BalanceSheetCard.kt`) in `feature/reports` showing `Total Assets`, `Total Liabilities`, `Net Worth (Equity)`, and `Debt-to-Asset Ratio %`.
 
 ### 5.3 Split Transactions / Multi-Category Journal Entries (`feature/edit-transaction`)
-- [ ] Add `TransactionSplitEntity` (`parentTransactionId`, `categoryId`, `amount`, `note`) with Room migration & Firestore sync support.
-- [ ] Update `EditTransactionScreen` with **"Split Across Categories"** validating `sum(splits) == transaction.amount`.
-- [ ] Update `ReportViewModel` & category budget aggregators so split amounts aggregate accurately per category while the bank account ledger shows the single payment.
+- [ ] Add `TransactionSplitEntity` (`parentTransactionId`, `categoryId`, `amount`, `note`) with Room migration & split-entry editor UI.
 
 ### 5.4 Reimbursable Expenses & Party Sub-Ledgers (`feature/loans`, `feature/transactions`)
-- [ ] Add `isReimbursable: Boolean` and optional `counterpartyName / partyId` fields on transactions.
-- [ ] Exclude pending reimbursable items from personal category expenses until settled (tracked under **Accounts Receivable**).
-- [ ] Add a **Party Sub-Ledger** view showing running `Dr / Cr` balance per client/person with 1-tap settle-up.
+- [ ] Add `isReimbursable: Boolean` and optional `partyId` fields on transactions and a Party Sub-Ledger view.
 
 ### 5.5 Formal P&L Statement & PDF Export (`feature/reports`)
-- [ ] Group categories into **Operating Income**, **Fixed Expenses**, and **Variable Expenses** for a structured **Profit & Loss (P&L)** statement.
-- [ ] Implement on-device Android `PdfDocument` generator creating a printable **Monthly / Annual Financial Statement PDF** shareable via `FileProvider`.
+- [x] Implement on-device Android `PdfDocument` generator (`PdfStatementExporter.kt`) and `"PDF"` export pill in `ReportScreen` generating & sharing a printable **Monthly / Annual CashPulse Financial Statement PDF** (P&L Summary, Balance Sheet, Category Breakdown).
 
 ---
 
 ## 6. Phase 4: Smart Bank Automation — Zero-Server-Cost Bank Sync (70% → 85%)
 
 ### 6.1 Bank SMS & Push Notification Auto-Tracker
-- [ ] Implement an opt-in `BankNotificationListenerService` (`NotificationListenerService`) — strictly on-device, zero external data transmission.
-- [ ] Build extensible local regex/rule parser for bank & mobile wallet debit/credit notifications (`Amount`, `Currency`, `TransactionType`, `Account Last-4`, `Merchant`).
-- [ ] Add bank/account mapping rules (`"Bank xx4821" → "Main Bank Account"`) and a **"Pending Auto-Captured Transactions"** 1-tap review queue.
+- [x] Implement opt-in `CashPulseBankNotificationService` (`NotificationListenerService`) registered in `AndroidManifest.xml` — strictly on-device, zero external data transmission.
+- [x] Implement regex/keyword parser for bank/wallet debit & credit notifications (`Amount`, `TransactionType`, `Merchant`) and Settings Pro toggle (`Auto-Track Bank Alerts`).
+- [ ] Add bank/account mapping UI and an optional **"Pending Auto-Captured Transactions"** review queue.
 
 ### 6.2 Smart Bank Statement Importer (`feature/import-data`)
-- [ ] Enhance CSV/Excel/PDF bank statement importer with column mapping (Date, Description, Debit, Credit, Balance).
-- [ ] Add fingerprint-based duplicate detection (`date + amount + normalizedDescription`) so overlapping statement imports never create duplicates.
+- [ ] Enhance CSV/Excel/PDF bank statement importer with column mapping and duplicate transaction detection.
 
 ---
 
 ## 7. Phase 5: Payments (Google Pay / Cards), Pro Subscriptions & Payouts (85% → 95%)
 
 ### 7.1 Google Play Billing (Google Pay & Card Checkout → Merchant Wallet/Bank Payout)
-> **Important Google Play Policy Note:** For digital app features/subscriptions distributed on Google Play (like Pro cloud backup & accounting), Google Play policy **requires** using **Google Play Billing** (which natively displays **Google Pay** and **Credit/Debit Cards** in Google's checkout sheet, and deposits proceeds directly into your linked **Google Payments Merchant Account / Bank Account**).
-
-- [ ] Integrate `com.android.billingclient:billing-ktx` (Billing Library v7).
-- [ ] Configure Pro products in **Google Play Console**:
-  - `cashpulse_pro_monthly` (Monthly Subscription with optional 7-day free trial)
-  - `cashpulse_pro_yearly` (Annual Subscription — best value)
-  - `cashpulse_pro_lifetime` (One-time Lifetime Pro unlock)
-- [ ] Connect your **Google Payments Merchant Profile** & bank account inside Google Play Console so Google automatically settles all Google Pay and Card subscription payments on payout schedule.
+- [x] Integrate `com.android.billingclient:billing-ktx:7.0.0` in `CashPulseCloudAccountManager` + dark-metallic Pro Paywall dialog in `SettingsScreen` (`Monthly`, `Yearly`, `Lifetime`).
+- [ ] Configure live SKU IDs (`cashpulse_pro_monthly`, `cashpulse_pro_yearly`, `cashpulse_pro_lifetime`) & **Google Payments Merchant Profile / bank payout account** in Google Play Console.
 
 ### 7.2 Server-Verified Entitlement in Firebase
-- [ ] Build a lightweight **Firebase Cloud Function** (`verifyPurchase`) using Google Play Developer API:
-  - Verifies purchase token with Google Play, prevents receipt spoofing, and updates `/users/{uid}/subscription/status` (`isPro`, `planType`, `expiryTimeMillis`).
-  - Grants immediate Firestore cloud sync access tied to the user's phone number (`uid`).
-- [ ] Build **CashPulse Pro Paywall Screen** matching the dark-metallic credit-card UI (Free vs. Pro comparison, clear trial/pricing details, Restore Purchases button).
-- [ ] *(Optional — Web / Direct Enterprise Billing Outside Play Store)*: Add **Google Pay API (`com.google.android.gms:play-services-wallet`) + Stripe PaymentIntent** if ever selling web/B2B desktop companion plans outside the Play Store.
+- [ ] Deploy a lightweight **Firebase Cloud Function** (`verifyPurchase`) using Google Play Developer API to validate purchase tokens and write `/cashpulse_users/{userId}/isPro`.
 
 ---
 
@@ -201,9 +159,50 @@
 | Milestone | Scope | Status | Progress |
 | :--- | :--- | :--- | :--- |
 | **Phase 0** | Modern Credit Card UI, Category Budgets, Reports, Widget | Complete | 100% |
-| **Phase 1** | Rebrand to CashPulse, GPLv3 Attribution, Firebase Project & Signing | Not Started | 0% |
-| **Phase 2** | Phone + SMS OTP Auth & Offline-First Firestore Sync (Pro) | Not Started | 0% |
-| **Phase 3** | Running Ledger, Reconciliation, Balance Sheet, Splits, PDF | Not Started | 0% |
-| **Phase 4** | Bank Notification Auto-Tracker & Smart Statement Import | Not Started | 0% |
-| **Phase 5** | Google Play Billing (Google Pay / Card) + Merchant Payouts | Not Started | 0% |
+| **Phase 1** | Rebrand to CashPulse (`com.cashpulse.wallet`), Assets (`v3`), GPLv3 Attribution | In Progress | 85% |
+| **Phase 2** | Phone + SMS OTP Auth & Offline-First Firestore Sync (Pro) | In Progress | 85% |
+| **Phase 3** | Reconciliation Button, Balance Sheet & Net Worth, PDF Statements | In Progress | 75% |
+| **Phase 4** | Bank Notification Auto-Tracker & Smart Statement Import | In Progress | 70% |
+| **Phase 5** | Google Play Billing v7 (Google Pay / Card) + Paywall UI | In Progress | 75% |
 | **Phase 6** | Release QA, Security Rules Verification & Play Store Launch | Not Started | 0% |
+
+---
+
+## 9. Production Cloud & Payments Configuration Guide
+
+### 9.1 Firebase Console Setup (Phone OTP + Firestore Database)
+1. **Create Firebase Project**: Go to `https://console.firebase.google.com/` -> **Add project** -> name it **CashPulse** -> upgrade to the **Blaze (Pay as you go)** plan (needed by Google for SMS OTP sending).
+2. **Register Both Android Packages**:
+   - Release package: `com.cashpulse.wallet`
+   - Debug package: `com.cashpulse.wallet.debug`
+   - Add both your debug and release **SHA-1** and **SHA-256** signing fingerprints (and later your Google Play App Signing SHA-256), then download the new `google-services.json` and overwrite `app/google-services.json`.
+3. **Enable Phone Number OTP**:
+   - **Authentication -> Sign-in method -> Phone -> Enable**.
+   - Under **Phone numbers for testing**, add test numbers (e.g., `+923001234567` with code `123456`) to test OTP free without SMS charges.
+   - Enable **App Check -> Play Integrity** before launch to block bot SMS abuse.
+4. **Create Cloud Firestore Database**:
+   - **Firestore Database -> Create database** (Production mode).
+   - Deploy scoped Security Rules so every authenticated phone user (`request.auth.uid`) can read/write **only their own** document under `cashpulse_users/{uid}`:
+     ```javascript
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         match /cashpulse_users/{userId} {
+           allow read, write: if request.auth != null && request.auth.uid == userId;
+         }
+       }
+     }
+     ```
+
+### 9.2 Google Play Billing & Google Payments Merchant Setup (Receiving Google Pay & Card Payouts)
+> **Note:** Digital Pro subscriptions inside Android apps on Google Play **must** use **Google Play Billing** (already integrated via `BillingClient 7.0.0`), which automatically shows **Google Pay**, **Credit/Debit Cards**, and local wallets at checkout, and deposits earnings directly into your verified **Google Payments Merchant / Bank Account** (not into a consumer Google Wallet balance).
+1. **Google Play Console & Merchant Account**:
+   - Register at `https://play.google.com/console` (\$25 one-time fee).
+   - Go to **Setup -> Payments profile -> Create/Link Google Payments Merchant Profile**.
+   - Verify your legal identity / business details, tax info, and add your **Bank Account (IBAN/SWIFT or local bank routing)** for monthly payouts.
+2. **Upload Internal Testing Build**:
+   - Generate your release keystore (`sign.jks`), run `./gradlew.bat bundleRelease`, and upload the `.aab` under `com.cashpulse.wallet` to **Internal testing** so Play Billing recognizes your SKU products.
+3. **Create the 3 Pro Products in Play Console (Exact IDs Already Wired in Code)**:
+   - Subscription ID: `cashpulse_pro_monthly` (Monthly Pro)
+   - Subscription ID: `cashpulse_pro_yearly` (Yearly Pro)
+   - In-app One-Time Product ID: `cashpulse_pro_lifetime` (Lifetime Pro)

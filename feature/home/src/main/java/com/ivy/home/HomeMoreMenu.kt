@@ -304,7 +304,7 @@ private fun SearchButton(
 
 @Composable
 private fun ColumnScope.OpenSource() {
-    val uriHandler = LocalUriHandler.current
+    val nav = navigation()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -312,10 +312,7 @@ private fun ColumnScope.OpenSource() {
             .clip(UI.shapes.r4)
             .background(UI.colors.pure)
             .clickable {
-                openUrl(
-                    uriHandler = uriHandler,
-                    url = Constants.URL_IVY_WALLET_REPO
-                )
+                nav.navigateTo(SettingsScreen)
             }
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -323,7 +320,8 @@ private fun ColumnScope.OpenSource() {
         Spacer(Modifier.width(16.dp))
 
         IvyIcon(
-            icon = R.drawable.github_logo
+            icon = R.drawable.ic_custom_safe_m,
+            tint = com.ivy.wallet.ui.theme.Green
         )
 
         Column(
@@ -332,7 +330,7 @@ private fun ColumnScope.OpenSource() {
                 .padding(start = 16.dp, end = 24.dp)
         ) {
             Text(
-                text = stringResource(R.string.ivy_wallet_open_source),
+                text = "CashPulse Cloud & Pro Accounting",
                 style = UI.typo.b2.style(
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -341,7 +339,7 @@ private fun ColumnScope.OpenSource() {
             Spacer(Modifier.height(4.dp))
 
             Text(
-                text = Constants.URL_IVY_WALLET_REPO,
+                text = "Phone OTP Backup • Balance Sheet • PDF Statements",
                 style = UI.typo.c.style(
                     fontWeight = FontWeight.ExtraBold,
                     color = Blue
