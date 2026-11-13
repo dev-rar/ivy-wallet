@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ivy.base.model.TransactionType
 import com.ivy.design.api.LocalTimeConverter
 import com.ivy.design.api.LocalTimeFormatter
@@ -58,7 +59,6 @@ import com.ivy.wallet.ui.theme.White
 import com.ivy.wallet.ui.theme.components.BalanceRow
 import com.ivy.wallet.ui.theme.components.IvyIcon
 import com.ivy.wallet.ui.theme.components.IvyOutlinedButton
-import com.ivy.wallet.ui.theme.wallet.AmountCurrencyB1
 import kotlin.math.absoluteValue
 
 @ExperimentalAnimationApi
@@ -314,6 +314,8 @@ fun CashFlowInfo(
                 textColor = White,
                 currency = currency,
                 balance = balance,
+                balanceFontSize = 26.sp,
+                currencyFontSize = 24.sp,
                 shortenBigNumbers = true,
                 hiddenMode = hideBalance
             )
@@ -382,11 +384,14 @@ fun CashFlowInfo(
                                 )
                             )
                         } else {
-                            AmountCurrencyB1(
-                                amount = monthlyIncome,
-                                currency = currency,
-                                textColor = Green,
-                                shortenBigNumbers = true
+                            Text(
+                                text = "${monthlyIncome.format(currency)} $currency",
+                                style = UI.typo.nB2.style(
+                                    color = Green,
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -443,11 +448,14 @@ fun CashFlowInfo(
                             )
                         )
                         Spacer(Modifier.height(2.dp))
-                        AmountCurrencyB1(
-                            amount = monthlyExpenses.absoluteValue,
-                            currency = currency,
-                            textColor = White,
-                            shortenBigNumbers = true
+                        Text(
+                            text = "${monthlyExpenses.absoluteValue.format(currency)} $currency",
+                            style = UI.typo.nB2.style(
+                                color = White,
+                                fontWeight = FontWeight.ExtraBold
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

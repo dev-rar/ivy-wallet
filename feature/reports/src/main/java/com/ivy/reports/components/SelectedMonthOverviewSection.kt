@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +70,7 @@ fun SelectedMonthOverviewSection(
                 .border(2.dp, UI.colors.medium, UI.shapes.r4)
                 .background(UI.colors.pure)
         ) {
-            // Header: Top Left (Month Name) | Top Right (Savings)
+            // Header: Top Left (Month Name + Budget below it) | Top Right (Budget status if set)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -78,39 +79,60 @@ fun SelectedMonthOverviewSection(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Left: Month Name
-                Text(
-                    text = monthData.monthName,
-                    style = UI.typo.b1.style(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = UI.colors.pureInverse
-                    )
-                )
-
-                // Top Right: Savings
-                Column(horizontalAlignment = Alignment.End) {
+                // Top Left: Month Name & Budget label below it
+                Column {
                     Text(
-                        text = if (isNetPositive) "Saved" else "Net Loss",
+                        text = monthData.monthName,
+                        style = UI.typo.b1.style(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = UI.colors.pureInverse
+                        )
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (hasBudget) {
+                            "Budget: ${monthData.totalBudgeted.format(baseCurrency)} $baseCurrency"
+                        } else {
+                            "Budget: Not set"
+                        },
                         style = UI.typo.c.style(
                             color = Gray,
                             fontWeight = FontWeight.SemiBold
                         )
                     )
-                    Spacer(Modifier.height(2.dp))
-                    val prefix = if (isNetPositive) "+" else ""
-                    Text(
-                        text = "$prefix${monthData.netSavings.format(baseCurrency)} $baseCurrency",
-                        style = UI.typo.b1.style(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isNetPositive) Green else Red
+                }
+
+                // Top Right: Left to spend / Over budget when budget is set
+                if (hasBudget) {
+                    val isOver = monthData.totalBudgetSpent > monthData.totalBudgeted
+                    val leftAmount = monthData.totalBudgeted - monthData.totalBudgetSpent
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (isOver) "Over budget" else "Left to spend",
+                            style = UI.typo.c.style(
+                                color = Gray,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         )
-                    )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = if (isOver) {
+                                "-${(-leftAmount).format(baseCurrency)} $baseCurrency"
+                            } else {
+                                "${leftAmount.format(baseCurrency)} $baseCurrency"
+                            },
+                            style = UI.typo.nB2.style(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isOver) Red else UI.colors.pureInverse
+                            )
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(18.dp))
 
-            // Center: Budget
+            // Center: Saved Money
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -118,40 +140,23 @@ fun SelectedMonthOverviewSection(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Total Monthly Budget",
+                    text = if (isNetPositive) "Saved" else "Net Loss",
                     style = UI.typo.c.style(
                         color = Gray,
                         fontWeight = FontWeight.SemiBold
                     )
                 )
                 Spacer(Modifier.height(4.dp))
+                val prefix = if (isNetPositive) "+" else ""
                 Text(
-                    text = if (hasBudget) {
-                        "${monthData.totalBudgeted.format(baseCurrency)} $baseCurrency"
-                    } else {
-                        "No budget set"
-                    },
-                    style = UI.typo.h2.style(
+                    text = "$prefix${monthData.netSavings.format(baseCurrency)} $baseCurrency",
+                    style = UI.typo.b1.style(
                         fontWeight = FontWeight.ExtraBold,
-                        color = UI.colors.pureInverse
-                    )
+                        color = if (isNetPositive) Green else Red
+                    ).copy(fontSize = 24.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-
-                if (hasBudget) {
-                    Spacer(Modifier.height(4.dp))
-                    val isOver = monthData.totalBudgetSpent > monthData.totalBudgeted
-                    Text(
-                        text = if (isOver) {
-                            "Spent: ${monthData.totalBudgetSpent.format(baseCurrency)} (Over budget)"
-                        } else {
-                            "Spent: ${monthData.totalBudgetSpent.format(baseCurrency)} • Left: ${(monthData.totalBudgeted - monthData.totalBudgetSpent).format(baseCurrency)}"
-                        },
-                        style = UI.typo.c.style(
-                            color = if (isOver) Red else Gray,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
-                }
             }
 
             Spacer(Modifier.height(18.dp))
@@ -179,10 +184,12 @@ fun SelectedMonthOverviewSection(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "+${monthData.income.format(baseCurrency)} $baseCurrency",
-                        style = UI.typo.b2.style(
+                        style = UI.typo.nB2.style(
                             color = Green,
                             fontWeight = FontWeight.ExtraBold
-                        )
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -209,10 +216,12 @@ fun SelectedMonthOverviewSection(
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "-${monthData.expenses.format(baseCurrency)} $baseCurrency",
-                        style = UI.typo.b2.style(
+                        style = UI.typo.nB2.style(
                             color = Red,
                             fontWeight = FontWeight.ExtraBold
-                        )
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -332,8 +341,8 @@ private fun CategoryHeader(
             textColor = contrastColor,
             currency = currency,
             balance = item.monthlyBalance,
-            balanceFontSize = 30.sp,
-            currencyFontSize = 30.sp,
+            balanceFontSize = 24.sp,
+            currencyFontSize = 24.sp,
             currencyUpfront = false,
             balanceAmountPrefix = balancePrefixValue
         )
