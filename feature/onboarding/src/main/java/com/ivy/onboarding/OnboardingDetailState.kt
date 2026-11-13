@@ -14,5 +14,8 @@ data class OnboardingDetailState(
     val accounts: ImmutableList<AccountBalance>,
     val accountSuggestions: ImmutableList<CreateAccountData>,
     val categories: ImmutableList<Category>,
-    val categorySuggestions: ImmutableList<CreateCategoryData>
+    val categorySuggestions: ImmutableList<CreateCategoryData>,
+    val otpSent: Boolean = false,
+    val cloudStatusMessage: String? = null,
+    val isPro: Boolean = false
 )

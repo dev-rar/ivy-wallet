@@ -46,6 +46,9 @@ fun BoxWithConstraintsScope.OnboardingScreen(screen: OnboardingScreen) {
 
         categorySuggestions = uiState.categorySuggestions,
         categories = uiState.categories,
+        otpSent = uiState.otpSent,
+        cloudStatusMessage = uiState.cloudStatusMessage,
+        isPro = uiState.isPro,
 
         onEvent = viewModel::onEvent
 
@@ -63,6 +66,9 @@ private fun BoxWithConstraintsScope.UI(
 
     categorySuggestions: ImmutableList<CreateCategoryData>,
     categories: ImmutableList<Category>,
+    otpSent: Boolean = false,
+    cloudStatusMessage: String? = null,
+    isPro: Boolean = false,
 
     onEvent: (OnboardingEvent) -> Unit = {}
 ) {
@@ -70,6 +76,18 @@ private fun BoxWithConstraintsScope.UI(
         OnboardingState.SPLASH, OnboardingState.LOGIN -> {
             OnboardingSplashLogin(
                 onboardingState = onboardingState,
+                otpSent = otpSent,
+                cloudStatusMessage = cloudStatusMessage,
+                isPro = isPro,
+                onSendOtp = { activity, phone ->
+                    onEvent(OnboardingEvent.SendPhoneOtp(activity, phone))
+                },
+                onVerifyOtp = { phone, otp ->
+                    onEvent(OnboardingEvent.VerifyPhoneOtpAndRestore(phone, otp))
+                },
+                onUpgradePro = { activity, planId ->
+                    onEvent(OnboardingEvent.UpgradeToProOnOnboarding(activity, planId))
+                },
                 onSkip = { onEvent(OnboardingEvent.LoginOfflineAccount) }
             )
         }

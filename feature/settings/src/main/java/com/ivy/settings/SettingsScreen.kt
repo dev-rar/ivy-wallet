@@ -1580,21 +1580,21 @@ private fun ProUpgradeDialog(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_MONTHLY) }
                 ) {
-                    Text("Monthly Pro — \$2.99 / mo (Google Pay / Card)")
+                    Text("Monthly Pro — \$10 / month (Google Pay / Card)")
                 }
                 Spacer(Modifier.height(8.dp))
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_YEARLY) }
                 ) {
-                    Text("Yearly Pro — \$19.99 / yr (Save 44%)")
+                    Text("Yearly Pro — \$100 / year (Save \$20)")
                 }
                 Spacer(Modifier.height(8.dp))
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_LIFETIME) }
                 ) {
-                    Text("Lifetime Pro — \$39.99 One-Time")
+                    Text("Lifetime Pro — \$500 One-Time")
                 }
             }
         },

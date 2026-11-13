@@ -2,6 +2,7 @@ package com.ivy.reports
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,11 +19,16 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -35,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ivy.base.legacy.Theme
 import com.ivy.base.legacy.stringRes
 import com.ivy.base.model.TransactionType
+import com.ivy.data.cloud.CashPulseCloudAccountManager
 import com.ivy.data.model.Category
 import com.ivy.data.model.CategoryId
 import com.ivy.data.model.primitive.ColorInt
@@ -71,6 +78,7 @@ import com.ivy.wallet.ui.theme.IvyDark
 import com.ivy.wallet.ui.theme.Orange
 import com.ivy.wallet.ui.theme.Purple1Dark
 import com.ivy.wallet.ui.theme.Red3Light
+import com.ivy.wallet.ui.theme.White
 import com.ivy.wallet.ui.theme.components.BackButtonType
 import com.ivy.wallet.ui.theme.components.BalanceRow
 import com.ivy.wallet.ui.theme.components.CircleButtonFilled
@@ -140,6 +148,7 @@ private fun BoxWithConstraintsScope.UI(
     ) {
         stickyHeader {
             Toolbar(
+                isPro = state.isPro,
                 onExport = {
                     onEventHandler.invoke(ReportScreenEvent.OnExport(context = context))
                 },
@@ -153,7 +162,21 @@ private fun BoxWithConstraintsScope.UI(
             )
         }
 
-        if (state.filter != null) {
+        if (!state.isPro) {
+            item {
+                ReportsProPaywallCard(
+                    proStatusMessage = state.proStatusMessage,
+                    onSelectPlan = { planId ->
+                        onEventHandler(
+                            ReportScreenEvent.OnUpgradeToPro(
+                                activity = context as? android.app.Activity,
+                                planId = planId
+                            )
+                        )
+                    }
+                )
+            }
+        } else if (state.filter != null) {
             item {
                 Text(
                     modifier = Modifier.padding(
@@ -307,26 +330,28 @@ private fun BoxWithConstraintsScope.UI(
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .clip(UI.shapes.rFull)
-                                .background(Green.copy(alpha = 0.16f))
-                                .clickable {
-                                    onEventHandler(ReportScreenEvent.OnExportPdfStatement(context))
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "PDF",
-                                style = UI.typo.c.style(
-                                    color = Green,
-                                    fontWeight = FontWeight.ExtraBold
+                        if (state.isPro) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(UI.shapes.rFull)
+                                    .background(Green.copy(alpha = 0.16f))
+                                    .clickable {
+                                        onEventHandler(ReportScreenEvent.OnExportPdfStatement(context))
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "PDF",
+                                    style = UI.typo.c.style(
+                                        color = Green,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
                                 )
-                            )
-                        }
+                            }
 
-                        Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(10.dp))
+                        }
 
                         Box(
                             modifier = Modifier
@@ -519,7 +544,107 @@ private fun NoFilterEmptyState(
 }
 
 @Composable
+private fun ReportsProPaywallCard(
+    proStatusMessage: String?,
+    onSelectPlan: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF1F2430), Color(0xFF12151C))
+                )
+            )
+            .border(1.dp, Green.copy(alpha = 0.45f), RoundedCornerShape(24.dp))
+            .padding(20.dp)
+    ) {
+        Text(
+            text = "CASHPULSE PRO FEATURE",
+            style = UI.typo.c.style(
+                color = Green,
+                fontWeight = FontWeight.ExtraBold
+            )
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Unlock Reports, Balance Sheet & PDF Statements",
+            style = UI.typo.h2.style(
+                color = White,
+                fontWeight = FontWeight.ExtraBold
+            )
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "Upgrade to CashPulse Pro to unlock:\n" +
+                "• Annual & Monthly Cash-Flow Reports\n" +
+                "• True Balance Sheet & Net Worth (Assets vs Liabilities)\n" +
+                "• Category Spending Trends & Printable PDF Statements\n" +
+                "• Automatic Permanent Firebase Cloud Backup\n" +
+                "• On-Device Bank SMS & Notification Auto-Tracker",
+            style = UI.typo.b2.style(
+                color = White.copy(alpha = 0.85f),
+                fontWeight = FontWeight.Medium
+            )
+        )
+
+        if (!proStatusMessage.isNullOrBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = proStatusMessage,
+                style = UI.typo.c.style(
+                    color = Green,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_MONTHLY) },
+            colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = White),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text("Monthly Pro — \$10 / month (Google Pay / Card)", fontWeight = FontWeight.ExtraBold)
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_YEARLY) },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = White.copy(alpha = 0.14f),
+                contentColor = White
+            ),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text("Yearly Pro — \$100 / year (Save \$20)", fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_LIFETIME) },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = White.copy(alpha = 0.08f),
+                contentColor = White
+            ),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text("Lifetime Pro — \$500 One-Time", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
 private fun Toolbar(
+    isPro: Boolean = true,
     onExport: () -> Unit,
     onFilter: () -> Unit
 ) {
@@ -532,28 +657,30 @@ private fun Toolbar(
     ) {
         Spacer(Modifier.weight(1f))
 
-        // Export CSV
-        IvyOutlinedButton(
-            text = stringResource(R.string.export),
-            iconTint = Green,
-            textColor = Green,
-            solidBackground = true,
-            padding = 8.dp,
-            iconStart = R.drawable.ic_export_csv
-        ) {
-            onExport()
+        if (isPro) {
+            // Export CSV
+            IvyOutlinedButton(
+                text = stringResource(R.string.export),
+                iconTint = Green,
+                textColor = Green,
+                solidBackground = true,
+                padding = 8.dp,
+                iconStart = R.drawable.ic_export_csv
+            ) {
+                onExport()
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            // Filter
+            CircleButtonFilled(
+                icon = R.drawable.ic_filter_xs
+            ) {
+                onFilter()
+            }
+
+            Spacer(Modifier.width(24.dp))
         }
-
-        Spacer(Modifier.width(16.dp))
-
-        // Filter
-        CircleButtonFilled(
-            icon = R.drawable.ic_filter_xs
-        ) {
-            onFilter()
-        }
-
-        Spacer(Modifier.width(24.dp))
     }
 }
 

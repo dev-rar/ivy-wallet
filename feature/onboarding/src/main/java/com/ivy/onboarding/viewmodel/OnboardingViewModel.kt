@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.viewModelScope
 import com.ivy.base.legacy.SharedPrefs
 import com.ivy.base.legacy.Theme
+import com.ivy.data.cloud.CashPulseCloudAccountManager
 import com.ivy.data.db.dao.read.AccountDao
 import com.ivy.data.db.dao.read.SettingsDao
 import com.ivy.data.db.dao.write.WriteSettingsDao
@@ -60,6 +61,7 @@ class OnboardingViewModel @Inject constructor(
     transactionReminderLogic: TransactionReminderLogic,
     preloadDataLogic: PreloadDataLogic,
     logoutLogic: LogoutLogic,
+    private val cloudAccountManager: CashPulseCloudAccountManager,
 ) : ComposeViewModel<OnboardingDetailState, OnboardingEvent>() {
 
     private val _state = mutableStateOf(OnboardingState.SPLASH)
@@ -72,6 +74,9 @@ class OnboardingViewModel @Inject constructor(
     private val _categories = mutableStateOf(listOf<Category>().toImmutableList())
     private val _categorySuggestions =
         mutableStateOf(listOf<CreateCategoryData>().toImmutableList())
+    private val _pendingVerificationId = mutableStateOf<String?>(null)
+    private val _cloudStatusMessage = mutableStateOf<String?>(null)
+    private val _isPro = mutableStateOf(cloudAccountManager.isPro())
 
     @Composable
     override fun uiState(): OnboardingDetailState {
@@ -80,7 +85,10 @@ class OnboardingViewModel @Inject constructor(
             accounts = _accounts.value,
             accountSuggestions = _accountSuggestions.value,
             categories = _categories.value,
-            categorySuggestions = _categorySuggestions.value
+            categorySuggestions = _categorySuggestions.value,
+            otpSent = _pendingVerificationId.value != null,
+            cloudStatusMessage = _cloudStatusMessage.value,
+            isPro = _isPro.value
         )
     }
 
@@ -146,6 +154,20 @@ class OnboardingViewModel @Inject constructor(
                 is OnboardingEvent.ImportFinished -> importFinished(event.success)
                 OnboardingEvent.ImportSkip -> importSkip()
                 OnboardingEvent.LoginOfflineAccount -> loginOfflineAccount()
+                is OnboardingEvent.SendPhoneOtp -> sendPhoneOtp(event.activity, event.phoneNumber)
+                is OnboardingEvent.VerifyPhoneOtpAndRestore -> verifyPhoneOtpAndRestore(
+                    rawPhone = event.phoneNumber,
+                    otpCode = event.otpCode
+                )
+                is OnboardingEvent.UpgradeToProOnOnboarding -> {
+                    cloudAccountManager.upgradeToPro(
+                        activity = event.activity,
+                        planId = event.planId
+                    ) { _, message ->
+                        _isPro.value = cloudAccountManager.isPro()
+                        _cloudStatusMessage.value = message
+                    }
+                }
                 OnboardingEvent.OnAddAccountsDone -> onAddAccountsDone()
                 OnboardingEvent.OnAddAccountsSkip -> onAddAccountsSkip()
                 OnboardingEvent.OnAddCategoriesDone -> onAddCategoriesDone()
@@ -159,6 +181,57 @@ class OnboardingViewModel @Inject constructor(
 
     private suspend fun loginOfflineAccount() {
         router.offlineAccountNext()
+    }
+
+    private fun sendPhoneOtp(activity: android.app.Activity?, rawPhone: String) {
+        _cloudStatusMessage.value = "Sending verification code..."
+        cloudAccountManager.sendOtp(
+            activity = activity,
+            rawPhone = rawPhone,
+            onCodeSent = { verificationId, statusNote ->
+                _pendingVerificationId.value = verificationId
+                _cloudStatusMessage.value = statusNote
+            },
+            onVerified = { _ ->
+                _pendingVerificationId.value = null
+                viewModelScope.launch {
+                    restoreOrContinueAfterAuth()
+                }
+            },
+            onError = { message ->
+                _cloudStatusMessage.value = message
+            }
+        )
+    }
+
+    private suspend fun verifyPhoneOtpAndRestore(rawPhone: String, otpCode: String) {
+        _cloudStatusMessage.value = "Verifying OTP & checking Firebase backup..."
+        val result = cloudAccountManager.verifyOtp(
+            verificationId = _pendingVerificationId.value,
+            otpCode = otpCode,
+            rawPhone = rawPhone
+        )
+        result.fold(
+            onSuccess = {
+                _pendingVerificationId.value = null
+                restoreOrContinueAfterAuth()
+            },
+            onFailure = { error ->
+                _cloudStatusMessage.value = error.localizedMessage ?: "OTP verification failed."
+            }
+        )
+    }
+
+    private suspend fun restoreOrContinueAfterAuth() {
+        val restoreResult = cloudAccountManager.restoreFromFirebase()
+        val hasAccounts = ioThread { accountDao.findAll().isNotEmpty() }
+        if (restoreResult.isSuccess && hasAccounts) {
+            _cloudStatusMessage.value = restoreResult.getOrNull() ?: "Cloud backup restored!"
+            router.categoriesNext(baseCurrency = _currency.value)
+        } else {
+            _cloudStatusMessage.value = "Phone verified! Setting up your new wallet..."
+            router.offlineAccountNext()
+        }
     }
     // Step 1 ---------------------------------------------------------------------------------------
 

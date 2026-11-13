@@ -3,7 +3,7 @@
 > **App Name:** **CashPulse** (*Smart Cash Flow, Budgeting & Personal Accounting*)
 > **Package ID:** `com.cashpulse.wallet`
 > **Base:** Extended commercial edition built on top of open-source Ivy Wallet (GNU GPLv3)
-> **Overall Progress:** `85 / 100` (Full CashPulse UI/Package Rebranding, Phone OTP Auth, Firestore Cloud Sync, Google Play Billing Paywall, Balance Sheet, PDF Statements, Reconciliation & Bank Auto-Tracker Built; Production Console Credentials Pending)
+> **Overall Progress:** `96 / 100` (Full CashPulse Rebrand `com.cashpulse.wallet`, Live `cashpulse-32b0d` Firebase Config, 4-Step Branded Onboarding & Mandatory Phone OTP Registration, Pro Paywall Gating [$10/mo, $100/yr, $500 Lifetime], Safe Cloud Deletion, Auto Background Cloud Sync, Balance Sheet, PDF Statements, Reconciliation & Bank Auto-Tracker Complete)
 
 ---
 
@@ -66,7 +66,8 @@
 ### 3.2 Package, Signing & Firebase Project Setup (`app/build.gradle.kts`)
 - [x] Update `applicationId` from `com.ivy.wallet` to `com.cashpulse.wallet` (plus matching `package_name` entries in `app/google-services.json`), and remove all user-facing Ivy Wallet branding from Onboarding, Home, More Menu, Settings, and `strings.xml` (while keeping `AttributionsProvider` GPLv3 credit).
 - [x] Update `resValue("string", "app_name", "CashPulse")` in `app/build.gradle.kts` across debug/release/demo variants.
-- [ ] Replace `app/google-services.json` with your own live **CashPulse Firebase Project** configuration (Blaze Pay-as-you-go plan required for real SMS OTP quotas), enable Phone Sign-In & Cloud Firestore, and add SHA-1/SHA-256 signing fingerprints.
+- [x] Replace `app/google-services.json` with your own **CashPulse Firebase Project** (`cashpulse-32b0d`) configuration (`com.cashpulse.wallet`).
+- [ ] In Firebase Console for `cashpulse-32b0d`, add `debug.jks` (and later release/Play App Signing) SHA-1 & SHA-256 fingerprints, enable Phone Sign-In (Blaze plan for real SMS quotas), and create Firestore with scoped rules.
 - [ ] Generate production release keystore (`sign.jks`) and store signing credentials safely offline.
 
 ### 3.3 GNU GPLv3 License Compliance (`LICENSE`, `feature/attributions`)
@@ -81,7 +82,8 @@
 
 ### 4.1 Phone Number Registration & SMS OTP Verification (`FirebaseAuth`)
 - [x] Add `com.google.firebase:firebase-auth` (`23.0.0`) & `firebase-firestore` dependencies in `shared/data/core`.
-- [x] Build **Phone + OTP Registration / Login Flow** in `SettingsScreen` + `CashPulseCloudAccountManager` (`PhoneAuthProvider.verifyPhoneNumber`, 6-digit OTP dialog, offline dev fallback).
+- [x] Build **Phone + OTP Registration / Login & Cloud Restore Flow** both on first-launch Onboarding (`OnboardingSplashLogin`) and inside `SettingsScreen` + `CashPulseCloudAccountManager`.
+- [x] Wire automatic debounced background Room → Firestore sync via `InvalidationTracker.Observer` whenever Pro user data changes while online (`CashPulseCloudAccountManager`).
 - [x] Store authenticated user record (`uid`, `phoneNumber`, `isPro`, `proPlan`) locally in `SharedPrefs` and sync metadata to Firestore `cashpulse_users/{userId}`.
 
 ### 4.2 SMS Cost & Abuse Protection
@@ -172,9 +174,11 @@
 
 ### 9.1 Firebase Console Setup (Phone OTP + Firestore Database)
 1. **Create Firebase Project**: Go to `https://console.firebase.google.com/` -> **Add project** -> name it **CashPulse** -> upgrade to the **Blaze (Pay as you go)** plan (needed by Google for SMS OTP sending).
-2. **Register Your Android Package**:
+2. **Register Your Android Package (`cashpulse-32b0d` — Connected in `app/google-services.json`)**:
    - Package name: `com.cashpulse.wallet` (used across debug, demo, and release builds)
-   - Add your debug and release **SHA-1** and **SHA-256** signing fingerprints (and later your Google Play App Signing SHA-256) to this single Android app in Firebase, then download the new `google-services.json` and overwrite `app/google-services.json`.
+   - Add these exact **`debug.jks` fingerprints** in Firebase Console → Project Settings → Your apps (`com.cashpulse.wallet`) so Phone Auth works in debug builds (and add your release / Play App Signing keys later):
+     - **SHA-1:** `96:27:30:45:9B:10:6B:8A:A8:FB:22:54:30:DE:B6:A9:7C:55:96:99`
+     - **SHA-256:** `15:4D:E0:FF:87:E2:A7:E6:71:CA:EB:37:CA:62:6A:D0:F4:8E:94:8A:32:5C:E1:F4:2D:7E:4D:72:3F:F5:C0:3C`
 3. **Enable Phone Number OTP**:
    - **Authentication -> Sign-in method -> Phone -> Enable**.
    - Under **Phone numbers for testing**, add test numbers (e.g., `+923001234567` with code `123456`) to test OTP free without SMS charges.

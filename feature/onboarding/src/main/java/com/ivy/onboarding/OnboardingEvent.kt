@@ -9,6 +9,18 @@ import com.ivy.wallet.domain.deprecated.logic.model.CreateCategoryData
 sealed interface OnboardingEvent {
 
     data object LoginOfflineAccount : OnboardingEvent
+    data class SendPhoneOtp(
+        val activity: android.app.Activity?,
+        val phoneNumber: String
+    ) : OnboardingEvent
+    data class VerifyPhoneOtpAndRestore(
+        val phoneNumber: String,
+        val otpCode: String
+    ) : OnboardingEvent
+    data class UpgradeToProOnOnboarding(
+        val activity: android.app.Activity?,
+        val planId: String
+    ) : OnboardingEvent
     data object StartImport : OnboardingEvent
     data object ImportSkip : OnboardingEvent
     data class ImportFinished(val success: Boolean) : OnboardingEvent

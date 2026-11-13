@@ -31,6 +31,8 @@ import com.ivy.legacy.utils.getISOFormattedDateTime
 import com.ivy.legacy.utils.ioThread
 import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.uiThread
+import com.ivy.navigation.Navigation
+import com.ivy.navigation.OnboardingScreen
 import com.ivy.ui.ComposeViewModel
 import com.ivy.wallet.domain.action.global.StartDayOfMonthAct
 import com.ivy.wallet.domain.action.global.UpdateStartDayOfMonthAct
@@ -59,6 +61,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsWriter: WriteSettingsDao,
     private val exportCsvUseCase: ExportCsvUseCase,
     private val cloudAccountManager: CashPulseCloudAccountManager,
+    private val nav: Navigation,
     @ApplicationContext private val context: Context
 ) : ComposeViewModel<SettingsState, SettingsEvent>() {
 
@@ -267,8 +270,10 @@ class SettingsViewModel @Inject constructor(
             SettingsEvent.LogoutPhone -> {
                 cloudAccountManager.logoutPhone()
                 pendingVerificationId.value = null
-                cloudStatusMessage.value = "Signed out from phone session. Local offline data remains safe."
+                cloudStatusMessage.value = "Signed out. Phone verification required to continue."
                 refreshCloudState()
+                nav.navigateTo(OnboardingScreen)
+                nav.resetBackStack()
             }
             is SettingsEvent.UpgradeToPro -> upgradeToPro(event.activity, event.planId)
             SettingsEvent.SyncToFirebaseCloud -> syncToFirebaseCloud()
@@ -518,7 +523,12 @@ class SettingsViewModel @Inject constructor(
 
     private fun deleteCloudUserData() {
         viewModelScope.launch {
+            progressState.value = true
+            val result = cloudAccountManager.deleteCloudBackup()
             cloudLogout()
+            refreshCloudState()
+            cloudStatusMessage.value = result.getOrElse { it.localizedMessage ?: "Cloud backup reset." }
+            progressState.value = false
         }
     }
 

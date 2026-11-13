@@ -20,6 +20,7 @@ import com.ivy.base.model.TransactionType
 import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
 import com.ivy.base.time.convertToLocal
+import com.ivy.data.cloud.CashPulseCloudAccountManager
 import com.ivy.data.db.dao.read.LoanDao
 import com.ivy.data.db.dao.read.LoanRecordDao
 import com.ivy.data.model.Category
@@ -120,7 +121,8 @@ class ReportViewModel @Inject constructor(
     private val accountRepository: AccountRepository,
     private val calcAccBalanceAct: CalcAccBalanceAct,
     private val loanDao: LoanDao,
-    private val loanRecordDao: LoanRecordDao
+    private val loanRecordDao: LoanRecordDao,
+    private val cloudAccountManager: CashPulseCloudAccountManager
 ) : ComposeViewModel<ReportScreenState, ReportScreenEvent>() {
     private val unSpecifiedCategory =
         Category(
@@ -157,6 +159,8 @@ class ReportViewModel @Inject constructor(
     private var treatTransfersAsIncExp by mutableStateOf(false)
     private var allTags by mutableStateOf<ImmutableList<Tag>>(persistentListOf())
     private var yearlyReportState by mutableStateOf(YearlyReportState())
+    private var isPro by mutableStateOf(false)
+    private var proStatusMessage by mutableStateOf<String?>(null)
 
     private var tagSearchJob: Job? = null
     private val tagSearchDebounceTimeInMills: Long = 500
@@ -197,7 +201,9 @@ class ReportViewModel @Inject constructor(
             upcomingTransactions = upcomingTransactions,
             allTags = allTags,
             showAccountColorsInTransactions = getShouldShowAccountSpecificColorInTransactions(),
-            yearlyReportState = yearlyReportState
+            yearlyReportState = yearlyReportState,
+            isPro = isPro,
+            proStatusMessage = proStatusMessage
         )
     }
 
@@ -233,6 +239,15 @@ class ReportViewModel @Inject constructor(
                 is ReportScreenEvent.OnExportPdfStatement -> {
                     exportPdfStatement(event.context)
                 }
+                is ReportScreenEvent.OnUpgradeToPro -> {
+                    cloudAccountManager.upgradeToPro(
+                        activity = event.activity,
+                        planId = event.planId
+                    ) { _, message ->
+                        isPro = cloudAccountManager.isPro()
+                        proStatusMessage = message
+                    }
+                }
             }
         }
     }
@@ -258,6 +273,7 @@ class ReportViewModel @Inject constructor(
 
     private fun start() {
         viewModelScope.launch(Dispatchers.IO) {
+            isPro = cloudAccountManager.isPro()
             baseCurrency = baseCurrencyAct(Unit)
             accounts = accountsAct(Unit)
             categories =

@@ -11,6 +11,12 @@ plugins {
     id("io.gitlab.arturbosch.detekt")
 }
 
+val googleServicesFile = file("google-services.json")
+val googleServicesExampleFile = file("google-services.example.json")
+if (!googleServicesFile.exists() && googleServicesExampleFile.exists()) {
+    googleServicesExampleFile.copyTo(googleServicesFile, overwrite = false)
+}
+
 android {
     namespace = "com.ivy.wallet"
     compileSdk = libs.versions.target.sdk.get().toInt()

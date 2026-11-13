@@ -2,6 +2,7 @@ package com.ivy.data.cloud
 
 import android.app.Activity
 import android.content.Context
+import androidx.room.InvalidationTracker
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -19,8 +20,14 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.ivy.base.legacy.SharedPrefs
 import com.ivy.data.backup.BackupDataUseCase
+import com.ivy.data.db.IvyRoomDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -37,9 +44,46 @@ import kotlin.coroutines.resume
 class CashPulseCloudAccountManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val sharedPrefs: SharedPrefs,
-    private val backupDataUseCase: BackupDataUseCase
+    private val backupDataUseCase: BackupDataUseCase,
+    private val ivyRoomDatabase: IvyRoomDatabase
 ) {
+    private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var isRestoring = false
+    private var autoSyncJob: Job? = null
+
+    init {
+        val watchedTables = arrayOf(
+            "accounts",
+            "transactions",
+            "categories",
+            "budgets",
+            "planned_payment_rules",
+            "loans",
+            "loan_records",
+            "tags",
+            "settings"
+        )
+        ivyRoomDatabase.invalidationTracker.addObserver(
+            object : InvalidationTracker.Observer(watchedTables) {
+                override fun onInvalidated(tables: Set<String>) {
+                    if (isRestoring || !isPhoneVerified() || !isPro()) return
+                    autoSyncJob?.cancel()
+                    autoSyncJob = syncScope.launch {
+                        delay(AUTO_SYNC_DEBOUNCE_MS)
+                        val hasAnyData = ivyRoomDatabase.accountDao.findAll().isNotEmpty() ||
+                            ivyRoomDatabase.transactionDao.findAll().isNotEmpty()
+                        if (!hasAnyData) return@launch
+                        syncToFirebase()
+                    }
+                }
+            }
+        )
+    }
+
     companion object {
+        private const val AUTO_SYNC_DEBOUNCE_MS = 2_500L
         const val KEY_PHONE_NUMBER = "cashpulse_phone_number"
         const val KEY_PHONE_VERIFIED = "cashpulse_phone_verified"
         const val KEY_FIREBASE_UID = "cashpulse_firebase_uid"
@@ -383,10 +427,47 @@ class CashPulseCloudAccountManager @Inject constructor(
             IllegalStateException("No Firebase cloud backup found for $phone.")
         )
 
-        val importResult = backupDataUseCase.importJson(jsonToRestore)
+        val importResult = try {
+            isRestoring = true
+            backupDataUseCase.importJson(jsonToRestore)
+        } finally {
+            isRestoring = false
+        }
         Result.success(
             "Restored ${importResult.accountsImported} accounts, ${importResult.categoriesImported} categories, and ${importResult.transactionsImported} transactions."
         )
+    }
+
+    suspend fun deleteCloudBackup(): Result<String> = withContext(Dispatchers.IO) {
+        if (!isPhoneVerified()) {
+            return@withContext Result.failure(IllegalStateException("Verify your phone number first."))
+        }
+        val phone = getPhoneNumber()
+        val docId = sanitizePhoneKey(phone)
+        try {
+            localMirrorFile(docId).delete()
+        } catch (_: Exception) {
+        }
+        sharedPrefs.putString(KEY_LAST_SYNC_TIME, "Never")
+
+        try {
+            withTimeoutOrNull(FIRESTORE_TIMEOUT_MS) {
+                FirebaseFirestore.getInstance()
+                    .collection(COLLECTION_USERS)
+                    .document(docId)
+                    .set(
+                        mapOf(
+                            "backupJson" to "",
+                            "updatedAt" to System.currentTimeMillis()
+                        ),
+                        SetOptions.merge()
+                    )
+                    .awaitUnit()
+            }
+        } catch (_: Exception) {
+        }
+
+        Result.success("Cloud backup reset. You can now start fresh.")
     }
 
     private fun activateProLocally(planId: String) {

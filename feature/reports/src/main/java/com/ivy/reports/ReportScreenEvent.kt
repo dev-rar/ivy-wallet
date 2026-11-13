@@ -20,6 +20,10 @@ sealed class ReportScreenEvent {
     data class OnSelectCategoryTrend(val categoryId: java.util.UUID?) : ReportScreenEvent()
     data object OnDismissCategoryTrend : ReportScreenEvent()
     data class OnExportPdfStatement(val context: Context) : ReportScreenEvent()
+    data class OnUpgradeToPro(
+        val activity: android.app.Activity?,
+        val planId: String
+    ) : ReportScreenEvent()
 
     @Deprecated("Uses legacy Transaction")
     data class SkipTransactionsLegacy(val transactions: List<com.ivy.base.legacy.Transaction>) :

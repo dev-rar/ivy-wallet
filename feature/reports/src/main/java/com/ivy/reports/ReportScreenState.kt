@@ -35,5 +35,7 @@ data class ReportScreenState(
     val treatTransfersAsIncExp: Boolean = false,
     val allTags: ImmutableList<Tag> = persistentListOf(),
     val showAccountColorsInTransactions: Boolean = false,
-    val yearlyReportState: YearlyReportState = YearlyReportState()
+    val yearlyReportState: YearlyReportState = YearlyReportState(),
+    val isPro: Boolean = false,
+    val proStatusMessage: String? = null
 )

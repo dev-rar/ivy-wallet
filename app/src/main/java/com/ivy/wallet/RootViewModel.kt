@@ -148,7 +148,11 @@ class RootViewModel @Inject constructor(
     }
 
     private fun isOnboardingCompleted(): Boolean {
-        return sharedPrefs.getBoolean(SharedPrefs.ONBOARDING_COMPLETED, false)
+        return sharedPrefs.getBoolean(SharedPrefs.ONBOARDING_COMPLETED, false) &&
+            sharedPrefs.getBoolean(
+                com.ivy.data.cloud.CashPulseCloudAccountManager.KEY_PHONE_VERIFIED,
+                false
+            )
     }
 
     // App Lock & UserInactivity --------------------------------------------------------------------
