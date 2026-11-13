@@ -166,7 +166,7 @@ fun SelectedMonthOverviewSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(UI.colors.medium.copy(alpha = 0.25f), UI.shapes.r4Bot)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Income
@@ -187,9 +187,8 @@ fun SelectedMonthOverviewSection(
                         style = UI.typo.nB2.style(
                             color = Green,
                             fontWeight = FontWeight.ExtraBold
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        ).copy(fontSize = 13.sp),
+                        maxLines = 1
                     )
                 }
 
@@ -219,9 +218,8 @@ fun SelectedMonthOverviewSection(
                         style = UI.typo.nB2.style(
                             color = Red,
                             fontWeight = FontWeight.ExtraBold
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        ).copy(fontSize = 13.sp),
+                        maxLines = 1
                     )
                 }
             }

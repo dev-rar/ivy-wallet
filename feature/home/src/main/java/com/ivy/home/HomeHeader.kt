@@ -206,6 +206,7 @@ fun CashFlowInfo(
 ) {
     val cashflow = monthlyIncome - monthlyExpenses
     val isPositiveCashflow = cashflow >= 0
+    val savingsRate = if (monthlyIncome > 0) ((cashflow / monthlyIncome) * 100.0).coerceAtLeast(0.0) else 0.0
     val nav = navigation()
 
     Column(
@@ -268,7 +269,7 @@ fun CashFlowInfo(
                     Spacer(Modifier.width(10.dp))
 
                     Text(
-                        text = stringResource(R.string.current_balance),
+                        text = "CASH FLOW",
                         style = UI.typo.c.style(
                             color = White.copy(alpha = 0.7f),
                             fontWeight = FontWeight.ExtraBold
@@ -276,8 +277,7 @@ fun CashFlowInfo(
                     )
                 }
 
-                if (!hideBalance) {
-                    val prefix = if (cashflow > 0) "+" else ""
+                if (!hideBalance && monthlyIncome > 0) {
                     Box(
                         modifier = Modifier
                             .clip(UI.shapes.rFull)
@@ -287,7 +287,7 @@ fun CashFlowInfo(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "$prefix${cashflow.format(currency)} $currency",
+                            text = "${String.format("%.1f", savingsRate)}% Saved",
                             style = UI.typo.nC.style(
                                 color = if (isPositiveCashflow) Green else Red,
                                 fontWeight = FontWeight.ExtraBold
@@ -299,7 +299,7 @@ fun CashFlowInfo(
 
             Spacer(Modifier.height(16.dp))
 
-            // Center: Main Balance Row
+            // Center: Cash Flow Row
             BalanceRow(
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
@@ -313,10 +313,10 @@ fun CashFlowInfo(
                     .testTag("home_balance"),
                 textColor = White,
                 currency = currency,
-                balance = balance,
-                balanceFontSize = 26.sp,
-                currencyFontSize = 24.sp,
-                shortenBigNumbers = true,
+                balance = cashflow,
+                balanceFontSize = 24.sp,
+                currencyFontSize = 20.sp,
+                shortenBigNumbers = false,
                 hiddenMode = hideBalance
             )
 
@@ -327,7 +327,7 @@ fun CashFlowInfo(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(White.copy(alpha = 0.06f))
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Income Section
@@ -347,12 +347,12 @@ fun CashFlowInfo(
                                 )
                             }
                         }
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 2.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(22.dp)
                             .clip(CircleShape)
                             .background(Green.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
@@ -360,11 +360,11 @@ fun CashFlowInfo(
                         IvyIcon(
                             icon = R.drawable.ic_income_white,
                             tint = Green,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     }
 
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
 
                     Column {
                         Text(
@@ -381,7 +381,7 @@ fun CashFlowInfo(
                                 style = UI.typo.nB2.style(
                                     color = White,
                                     fontWeight = FontWeight.ExtraBold
-                                )
+                                ).copy(fontSize = 13.sp)
                             )
                         } else {
                             Text(
@@ -389,9 +389,8 @@ fun CashFlowInfo(
                                 style = UI.typo.nB2.style(
                                     color = Green,
                                     fontWeight = FontWeight.ExtraBold
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                ).copy(fontSize = 13.sp),
+                                maxLines = 1
                             )
                         }
                     }
@@ -401,11 +400,11 @@ fun CashFlowInfo(
                 Spacer(
                     modifier = Modifier
                         .width(1.dp)
-                        .height(36.dp)
+                        .height(34.dp)
                         .background(White.copy(alpha = 0.14f))
                 )
 
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(6.dp))
 
                 // Expense Section
                 Row(
@@ -420,12 +419,12 @@ fun CashFlowInfo(
                                 )
                             )
                         }
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 2.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(22.dp)
                             .clip(CircleShape)
                             .background(Red.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
@@ -433,11 +432,11 @@ fun CashFlowInfo(
                         IvyIcon(
                             icon = R.drawable.ic_expense,
                             tint = Red,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     }
 
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
 
                     Column {
                         Text(
@@ -453,9 +452,8 @@ fun CashFlowInfo(
                             style = UI.typo.nB2.style(
                                 color = White,
                                 fontWeight = FontWeight.ExtraBold
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            ).copy(fontSize = 13.sp),
+                            maxLines = 1
                         )
                     }
                 }
