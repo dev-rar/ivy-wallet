@@ -12,7 +12,7 @@ fun AcceptTermsText(
 ) {
     Text(
         modifier = modifier,
-        text = "Please read and agree to the following terms before using the app:",
+        text = "Please read and agree to the following terms before using CashPulse:",
         style = MaterialTheme.typography.bodyLarge,
         fontWeight = FontWeight.Bold,
     )

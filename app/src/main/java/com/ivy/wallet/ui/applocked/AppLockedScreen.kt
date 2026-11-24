@@ -53,6 +53,23 @@ fun BoxWithConstraintsScope.AppLockedScreen(
     ) {
         Spacer(Modifier.height(32.dp))
 
+        Image(
+            painter = painterResource(id = R.drawable.cashpulse_brand_emblem),
+            contentDescription = "CashPulse Logo",
+            modifier = Modifier.size(56.dp)
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "CashPulse",
+            style = UI.typo.b1.style(
+                fontWeight = FontWeight.ExtraBold,
+            )
+        )
+
+        Spacer(Modifier.height(16.dp))
+
         Text(
             modifier = Modifier
                 .background(UI.colors.medium, UI.shapes.rFull)

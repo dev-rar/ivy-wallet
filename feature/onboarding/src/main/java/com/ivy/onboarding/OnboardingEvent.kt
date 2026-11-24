@@ -22,6 +22,7 @@ sealed interface OnboardingEvent {
         val planId: String
     ) : OnboardingEvent
     data object StartImport : OnboardingEvent
+    data object RestoreCloudBackup : OnboardingEvent
     data object ImportSkip : OnboardingEvent
     data class ImportFinished(val success: Boolean) : OnboardingEvent
     data object StartFresh : OnboardingEvent

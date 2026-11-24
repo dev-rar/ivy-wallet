@@ -14,7 +14,7 @@ import com.ivy.disclaimer.composables.AgreeButton
 import com.ivy.disclaimer.composables.AgreementCheckBox
 import com.ivy.disclaimer.composables.DisclaimerTopAppBar
 import com.ivy.navigation.screenScopedViewModel
-import com.ivy.ui.component.OpenSourceCard
+import com.ivy.ui.component.CashPulseBrandCard
 
 @Composable
 fun DisclaimerScreenImpl() {
@@ -54,7 +54,7 @@ private fun Content(
         modifier = modifier.padding(horizontal = 16.dp)
     ) {
         item {
-            OpenSourceCard()
+            CashPulseBrandCard()
         }
         item {
             Spacer(modifier = Modifier.height(12.dp))

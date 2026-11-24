@@ -12,6 +12,7 @@ import com.ivy.base.legacy.Transaction
 import com.ivy.base.legacy.TransactionHistoryItem
 import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
+import com.ivy.data.cloud.CashPulseCloudAccountManager
 import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.mapper.TransactionMapper
@@ -92,7 +93,8 @@ class HomeViewModel @Inject constructor(
     private val transactionMapper: TransactionMapper,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
-    private val features: Features
+    private val features: Features,
+    private val cloudAccountManager: CashPulseCloudAccountManager
 ) : ComposeViewModel<HomeState, HomeEvent>() {
     private var currentTheme by mutableStateOf(Theme.AUTO)
     private var name by mutableStateOf("")
@@ -132,6 +134,11 @@ class HomeViewModel @Inject constructor(
     private var hideBalance by mutableStateOf(false)
     private var hideIncome by mutableStateOf(false)
     private var expanded by mutableStateOf(true)
+    private var isPro by mutableStateOf(false)
+    private var isPhoneVerified by mutableStateOf(false)
+    private var lastCloudSync by mutableStateOf("Never")
+    private var isBackingUp by mutableStateOf(false)
+    private var backupStatusMessage by mutableStateOf<String?>(null)
 
     @Composable
     override fun uiState(): HomeState {
@@ -154,7 +161,12 @@ class HomeViewModel @Inject constructor(
             hideBalance = getHideBalance(),
             expanded = getExpanded(),
             hideIncome = getHideIncome(),
-            shouldShowAccountSpecificColorInTransactions = getShouldShowAccountSpecificColorInTransactions()
+            shouldShowAccountSpecificColorInTransactions = getShouldShowAccountSpecificColorInTransactions(),
+            isPro = isPro,
+            isPhoneVerified = isPhoneVerified,
+            lastCloudSync = lastCloudSync,
+            isBackingUp = isBackingUp,
+            backupStatusMessage = backupStatusMessage
         )
     }
 
@@ -252,7 +264,33 @@ class HomeViewModel @Inject constructor(
                 HomeEvent.SwitchTheme -> switchTheme()
                 is HomeEvent.DismissCustomerJourneyCard -> dismissCustomerJourneyCard(event.card)
                 is HomeEvent.SetExpanded -> setExpanded(event.expanded)
+                HomeEvent.ManualCloudBackup -> manualCloudBackup()
+                HomeEvent.ClearBackupMessage -> backupStatusMessage = null
             }
+        }
+    }
+
+    private fun refreshCloudBackupState() {
+        isPro = cloudAccountManager.isPro()
+        isPhoneVerified = cloudAccountManager.isPhoneVerified()
+        lastCloudSync = cloudAccountManager.getLastSyncTime()
+    }
+
+    private suspend fun manualCloudBackup() {
+        if (!cloudAccountManager.isPro()) {
+            backupStatusMessage = "Upgrade to Paid (\$100 one-time) to enable cloud backups."
+            return
+        }
+        if (!cloudAccountManager.isPhoneVerified()) {
+            backupStatusMessage = "Verify your mobile number to sync backups to the cloud."
+            return
+        }
+        isBackingUp = true
+        val result = cloudAccountManager.syncToFirebase()
+        isBackingUp = false
+        refreshCloudBackupState()
+        backupStatusMessage = result.getOrElse {
+            it.localizedMessage ?: "Backup failed. Please try again."
         }
     }
 
@@ -278,6 +316,7 @@ class HomeViewModel @Inject constructor(
         period = timePeriod
         this.hideBalance = hideBalance
         this.hideIncome = hideIncome
+        refreshCloudBackupState()
 
         // This method is used to restore the theme when user imports locally backed up data
         ivyContext.switchTheme(theme = settings.theme)

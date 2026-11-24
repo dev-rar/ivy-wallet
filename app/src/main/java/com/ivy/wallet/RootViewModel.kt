@@ -20,6 +20,7 @@ import com.ivy.navigation.MainScreen
 import com.ivy.navigation.Navigation
 import com.ivy.navigation.OnboardingScreen
 import com.ivy.ui.R
+import com.ivy.wallet.cloud.DailyCloudBackupScheduler
 import com.ivy.wallet.domain.deprecated.logic.notification.TransactionReminderLogic
 import com.ivy.wallet.migrations.MigrationsManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,6 +44,7 @@ class RootViewModel @Inject constructor(
     private val transactionReminderLogic: TransactionReminderLogic,
     private val migrationsManager: MigrationsManager,
     private val legalRepo: LegalRepository,
+    private val dailyCloudBackupScheduler: DailyCloudBackupScheduler,
 ) : ViewModel() {
 
     companion object {
@@ -52,6 +54,7 @@ class RootViewModel @Inject constructor(
     }
 
     private var appLockEnabled = false
+    private var initialNavigationDone = false
 
     private val _appLocked = MutableStateFlow<Boolean?>(null)
     val appLocked = _appLocked.readOnly()
@@ -74,26 +77,55 @@ class RootViewModel @Inject constructor(
         viewModelScope.launch {
             TestIdlingResource.increment()
 
-            ioThread {
-                appLockEnabled = sharedPrefs.getBoolean(SharedPrefs.APP_LOCK_ENABLED, false)
-                // initial app locked state
-                _appLocked.value = appLockEnabled
+            val (lockEnabled, disclaimerAccepted, onboardingCompleted) = ioThread {
+                Triple(
+                    sharedPrefs.getBoolean(SharedPrefs.APP_LOCK_ENABLED, false),
+                    legalRepo.isDisclaimerAccepted(),
+                    isOnboardingCompleted()
+                )
+            }
 
-                if (isOnboardingCompleted()) {
-                    navigateOnboardedUser(intent)
+            appLockEnabled = lockEnabled
+
+            if (!initialNavigationDone) {
+                initialNavigationDone = true
+                if (!disclaimerAccepted) {
+                    if (onboardingCompleted) {
+                        if (handleSpecialStart(intent)) {
+                            nav.navigateTo(DisclaimerScreen)
+                        } else {
+                            nav.navigateWithBackStack(
+                                backScreen = MainScreen,
+                                topScreen = DisclaimerScreen
+                            )
+                            ioThread {
+                                transactionReminderLogic.scheduleReminder()
+                            }
+                        }
+                    } else {
+                        nav.navigateWithBackStack(
+                            backScreen = OnboardingScreen,
+                            topScreen = DisclaimerScreen
+                        )
+                    }
                 } else {
-                    nav.navigateTo(OnboardingScreen)
-                }
-                if (!legalRepo.isDisclaimerAccepted()) {
-                    nav.navigateTo(DisclaimerScreen)
+                    if (onboardingCompleted) {
+                        navigateOnboardedUser(intent)
+                    } else {
+                        nav.navigateTo(OnboardingScreen)
+                    }
                 }
             }
+
+            // Publish app lock state only after the initial screen is in place
+            _appLocked.value = lockEnabled
 
             TestIdlingResource.decrement()
         }
 
         viewModelScope.launch {
             migrationsManager.executeMigrations()
+            dailyCloudBackupScheduler.scheduleEndOfDayBackup()
         }
     }
 
@@ -148,11 +180,7 @@ class RootViewModel @Inject constructor(
     }
 
     private fun isOnboardingCompleted(): Boolean {
-        return sharedPrefs.getBoolean(SharedPrefs.ONBOARDING_COMPLETED, false) &&
-            sharedPrefs.getBoolean(
-                com.ivy.data.cloud.CashPulseCloudAccountManager.KEY_PHONE_VERIFIED,
-                false
-            )
+        return sharedPrefs.getBoolean(SharedPrefs.ONBOARDING_COMPLETED, false)
     }
 
     // App Lock & UserInactivity --------------------------------------------------------------------

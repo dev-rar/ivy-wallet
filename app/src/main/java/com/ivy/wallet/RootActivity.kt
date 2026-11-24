@@ -393,7 +393,10 @@ class RootActivity : AppCompatActivity(), RootScreen {
         val share = Intent.createChooser(
             Intent().apply {
                 action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TEXT, Constants.URL_IVY_WALLET_GOOGLE_PLAY)
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    "Manage your cash flow & accounting with CashPulse: https://play.google.com/store/apps/details?id=$packageName"
+                )
                 type = "text/plain"
             },
             null

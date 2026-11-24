@@ -33,8 +33,8 @@ class PollViewModel @Inject constructor(
 
   private val poll = Poll(
     id = PollId.PaidIvy,
-    title = "How much are you willing to pay for Ivy Wallet?",
-    description = "To continue to exist, Ivy Wallet needs maintenance." +
+    title = "How much are you willing to pay for CashPulse?",
+    description = "To continue to exist, CashPulse needs maintenance." +
         " Updating it requires effort and we can't do it for free.",
     options = listOf(
       PollOption(

@@ -97,7 +97,7 @@
     <string name="hi_name">Hi %1$s</string>
     <string name="cashflow">Cashflow: %1$s%2$s %3$s</string>
     <string name="search_transactions">Search transactions...</string>
-    <string name="ivy_wallet_open_source">CashPulse Cloud &amp; Pro</string>
+    <string name="ivy_wallet_open_source">CashPulse</string>
     <string name="savings_goal">Savings goal</string>
     <string name="quick_access">Quick access</string>
     <string name="settings">Settings</string>
@@ -399,8 +399,8 @@
     <string name="make_ivy_wallet_better_description">Do you want to help improve CashPulse? Please write us a review!\nYour feedback is the key to implementing the features you need.\nIt also helps us rank higher in the Play Store, allowing us to invest more in the product instead of marketing.\n\nWe appreciate your support!\nThe CashPulse Team</string>
     <string name="we_need_your_help">We need your help!</string>
     <string name="we_need_your_help_description">We need your support to continue improving the app. Please share CashPulse with your friends and family, and consider leaving a review on the Google Play Store. Your contributions will help us grow.</string>
-    <string name="ivy_wallet_is_opensource">CashPulse Open-Source Foundation</string>
-    <string name="ivy_wallet_is_opensource_description">CashPulse includes open-source components licensed under GNU GPLv3. Check Attributions in Settings for source details.</string>
+    <string name="ivy_wallet_is_opensource">CashPulse</string>
+    <string name="ivy_wallet_is_opensource_description">Smart Cash Flow, Budgeting &amp; Personal Accounting.</string>
     <string name="contribute">Contribute</string>
     <string name="adjust_balance">Adjust balance</string>
     <string name="authentication_required">Authentication required</string>

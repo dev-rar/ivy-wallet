@@ -47,6 +47,14 @@ class Navigation @Inject constructor() {
     switchScreen(screen)
   }
 
+  fun navigateWithBackStack(backScreen: Screen, topScreen: Screen) {
+    if (lastScreen != null) {
+      backStack.push(lastScreen)
+    }
+    backStack.push(backScreen)
+    switchScreen(topScreen)
+  }
+
   fun backStackEmpty() = backStack.empty()
 
   private fun popBackStack() {

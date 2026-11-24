@@ -309,7 +309,7 @@ fun LazyListScope.sectionDivider(text: String) {
         Text(text = text, style = UI.typo.b1)
         Text(
             text = """
-                Match the CSV column with the appropriate Ivy type.
+                Match the CSV column with the appropriate CashPulse field.
                 If the parsing is successful the border will turn green.
             """.trimIndent(),
             style = UI.typo.nB2,

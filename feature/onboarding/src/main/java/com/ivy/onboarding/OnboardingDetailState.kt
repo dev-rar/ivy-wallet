@@ -1,6 +1,7 @@
 package com.ivy.onboarding
 
 import androidx.compose.runtime.Immutable
+import com.ivy.data.cloud.CloudBackupMetadata
 import com.ivy.data.model.Category
 import com.ivy.legacy.data.model.AccountBalance
 import com.ivy.wallet.domain.data.IvyCurrency
@@ -17,5 +18,7 @@ data class OnboardingDetailState(
     val categorySuggestions: ImmutableList<CreateCategoryData>,
     val otpSent: Boolean = false,
     val cloudStatusMessage: String? = null,
-    val isPro: Boolean = false
+    val isPro: Boolean = false,
+    val detectedCloudBackup: CloudBackupMetadata? = null,
+    val isRestoringCloudBackup: Boolean = false
 )

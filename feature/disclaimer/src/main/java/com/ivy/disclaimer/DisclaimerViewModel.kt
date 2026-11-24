@@ -59,7 +59,7 @@ class DisclaimerViewModel @Inject constructor(
         // LEGAL text - do NOT extract or translate
         val LegalCheckboxes = listOf(
             CheckboxViewState(
-                text = "I recognize this app is open-source and provided 'as-is' " +
+                text = "I recognize that CashPulse is provided 'as-is' " +
                         "with no warranties, explicit or implied. " +
                         "I fully accept all risks of errors, defects, or failures, " +
                         "using the app solely at my own risk.",
@@ -68,19 +68,19 @@ class DisclaimerViewModel @Inject constructor(
             CheckboxViewState(
                 text = "I understand there is no warranty for the accuracy, " +
                         "reliability, or completeness of my data. " +
-                        "Manual data backup is my responsibility, and I agree to not hold " +
-                        "the app liable for any data loss.",
+                        "Managing local backups or optional cloud sync is my responsibility, " +
+                        "and I agree not to hold CashPulse liable for any data loss.",
                 checked = false,
             ),
             CheckboxViewState(
-                text = "I hereby release the app developers, contributors, " +
+                text = "I hereby release CashPulse, its developers, " +
                         "and distributing company from any liability for " +
                         "claims, damages, legal fees, or losses, including those resulting " +
                         "from security breaches or data inaccuracies.",
                 checked = false,
             ),
             CheckboxViewState(
-                text = "I am aware and accept that the app may display misleading information " +
+                text = "I am aware and accept that CashPulse may display estimates " +
                         "or contain inaccuracies. " +
                         "I assume full responsibility for verifying the integrity " +
                         "of financial data and calculations before making " +

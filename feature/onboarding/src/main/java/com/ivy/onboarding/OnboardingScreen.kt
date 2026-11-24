@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ivy.data.cloud.CloudBackupMetadata
 import com.ivy.data.model.Category
 import com.ivy.legacy.data.model.AccountBalance
 import com.ivy.legacy.utils.onScreenStart
@@ -49,6 +50,8 @@ fun BoxWithConstraintsScope.OnboardingScreen(screen: OnboardingScreen) {
         otpSent = uiState.otpSent,
         cloudStatusMessage = uiState.cloudStatusMessage,
         isPro = uiState.isPro,
+        detectedCloudBackup = uiState.detectedCloudBackup,
+        isRestoringCloudBackup = uiState.isRestoringCloudBackup,
 
         onEvent = viewModel::onEvent
 
@@ -69,6 +72,8 @@ private fun BoxWithConstraintsScope.UI(
     otpSent: Boolean = false,
     cloudStatusMessage: String? = null,
     isPro: Boolean = false,
+    detectedCloudBackup: CloudBackupMetadata? = null,
+    isRestoringCloudBackup: Boolean = false,
 
     onEvent: (OnboardingEvent) -> Unit = {}
 ) {
@@ -94,6 +99,10 @@ private fun BoxWithConstraintsScope.UI(
 
         OnboardingState.CHOOSE_PATH -> {
             OnboardingType(
+                detectedCloudBackup = detectedCloudBackup,
+                isRestoringCloudBackup = isRestoringCloudBackup,
+                cloudStatusMessage = cloudStatusMessage,
+                onRestoreCloudBackup = { onEvent(OnboardingEvent.RestoreCloudBackup) },
                 onStartImport = { onEvent(OnboardingEvent.StartImport) },
                 onStartFresh = { onEvent(OnboardingEvent.StartFresh) }
             )

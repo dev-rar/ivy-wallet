@@ -14,7 +14,7 @@ fun DisclaimerTopAppBar(
     TopAppBar(
         modifier = modifier,
         title = {
-            Text(text = "Important User Agreement")
+            Text(text = "CashPulse Terms & Conditions")
         }
     )
 }

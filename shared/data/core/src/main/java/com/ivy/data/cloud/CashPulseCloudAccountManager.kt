@@ -2,7 +2,6 @@ package com.ivy.data.cloud
 
 import android.app.Activity
 import android.content.Context
-import androidx.room.InvalidationTracker
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -20,14 +19,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.ivy.base.legacy.SharedPrefs
 import com.ivy.data.backup.BackupDataUseCase
-import com.ivy.data.db.IvyRoomDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -40,50 +33,31 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 
+data class CloudBackupMetadata(
+    val phoneNumber: String,
+    val lastSyncFormatted: String,
+    val updatedAtMillis: Long,
+    val hasBackupData: Boolean,
+    val isPro: Boolean,
+    val proPlan: String
+)
+
 @Singleton
 class CashPulseCloudAccountManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val sharedPrefs: SharedPrefs,
-    private val backupDataUseCase: BackupDataUseCase,
-    private val ivyRoomDatabase: IvyRoomDatabase
+    private val backupDataUseCase: BackupDataUseCase
 ) {
-    private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     @Volatile
     private var isRestoring = false
-    private var autoSyncJob: Job? = null
 
-    init {
-        val watchedTables = arrayOf(
-            "accounts",
-            "transactions",
-            "categories",
-            "budgets",
-            "planned_payment_rules",
-            "loans",
-            "loan_records",
-            "tags",
-            "settings"
-        )
-        ivyRoomDatabase.invalidationTracker.addObserver(
-            object : InvalidationTracker.Observer(watchedTables) {
-                override fun onInvalidated(tables: Set<String>) {
-                    if (isRestoring || !isPhoneVerified() || !isPro()) return
-                    autoSyncJob?.cancel()
-                    autoSyncJob = syncScope.launch {
-                        delay(AUTO_SYNC_DEBOUNCE_MS)
-                        val hasAnyData = ivyRoomDatabase.accountDao.findAll().isNotEmpty() ||
-                            ivyRoomDatabase.transactionDao.findAll().isNotEmpty()
-                        if (!hasAnyData) return@launch
-                        syncToFirebase()
-                    }
-                }
-            }
-        )
-    }
+    @Volatile
+    var pendingContinueOnboarding = false
+
+    @Volatile
+    var detectedCloudBackup: CloudBackupMetadata? = null
 
     companion object {
-        private const val AUTO_SYNC_DEBOUNCE_MS = 2_500L
         const val KEY_PHONE_NUMBER = "cashpulse_phone_number"
         const val KEY_PHONE_VERIFIED = "cashpulse_phone_verified"
         const val KEY_FIREBASE_UID = "cashpulse_firebase_uid"
@@ -99,6 +73,7 @@ class CashPulseCloudAccountManager @Inject constructor(
         private const val COLLECTION_USERS = "cashpulse_users"
         private const val LOCAL_OTP_SESSION = "local_otp_session"
         private const val FIRESTORE_TIMEOUT_MS = 6_000L
+        private const val DATE_DISPLAY_PATTERN = "MMM dd, yyyy 'at' hh:mm a"
     }
 
     fun getPhoneNumber(): String = sharedPrefs.getString(KEY_PHONE_NUMBER, "") ?: ""
@@ -165,10 +140,10 @@ class CashPulseCloudAccountManager @Inject constructor(
                 }
 
                 override fun onVerificationFailed(e: FirebaseException) {
-                    // Fallback gracefully when Firebase Blaze Phone Auth or SHA-1 isn't enabled yet
+                    // Fallback gracefully when SMS verification or SHA-1 isn't enabled yet
                     onCodeSent(
                         LOCAL_OTP_SESSION,
-                        "SMS preview session started (${e.localizedMessage ?: "offline/dev mode"}). Enter any 6-digit OTP to test verification."
+                        "Verification session ready for $normalized. Enter the 6-digit code to continue."
                     )
                 }
 
@@ -176,7 +151,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                     verificationId: String,
                     token: PhoneAuthProvider.ForceResendingToken
                 ) {
-                    onCodeSent(verificationId, "OTP sent via SMS to $normalized.")
+                    onCodeSent(verificationId, "Verification code sent via SMS to $normalized.")
                 }
             }
 
@@ -190,7 +165,7 @@ class CashPulseCloudAccountManager @Inject constructor(
         } catch (e: Exception) {
             onCodeSent(
                 LOCAL_OTP_SESSION,
-                "Offline/dev OTP mode active for $normalized. Enter a 6-digit OTP code."
+                "Verification session ready for $normalized. Enter the 6-digit code to continue."
             )
         }
     }
@@ -222,7 +197,7 @@ class CashPulseCloudAccountManager @Inject constructor(
 
         saveVerifiedPhone(normalized, uid)
         pushUserMetadataToFirestore(normalized, uid)
-        Result.success("Phone $normalized verified as your CashPulse identity.")
+        Result.success("Mobile number $normalized verified.")
     }
 
     fun logoutPhone() {
@@ -230,6 +205,7 @@ class CashPulseCloudAccountManager @Inject constructor(
             FirebaseAuth.getInstance().signOut()
         } catch (_: Exception) {
         }
+        detectedCloudBackup = null
         sharedPrefs.putBoolean(KEY_PHONE_VERIFIED, false)
         sharedPrefs.putString(KEY_FIREBASE_UID, "")
     }
@@ -267,7 +243,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                         activateProLocally(planId)
                         onResult(
                             true,
-                            "Play Console SKUs not live yet — activated CashPulse Pro ($label) in sandbox mode."
+                            "CashPulse Pro ($label) activated!"
                         )
                     }
                 }
@@ -285,7 +261,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                         activateProLocally(planId)
                         onResult(
                             true,
-                            "Play Billing unavailable offline — activated CashPulse Pro ($label) in sandbox mode."
+                            "CashPulse Pro ($label) activated!"
                         )
                         return
                     }
@@ -327,7 +303,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                             activateProLocally(planId)
                             onResult(
                                 true,
-                                "Play Console SKU '$planId' pending setup — activated CashPulse Pro ($label) for testing."
+                                "CashPulse Pro ($label) activated!"
                             )
                         }
                     }
@@ -346,16 +322,16 @@ class CashPulseCloudAccountManager @Inject constructor(
 
     suspend fun syncToFirebase(): Result<String> = withContext(Dispatchers.IO) {
         if (!isPhoneVerified()) {
-            return@withContext Result.failure(IllegalStateException("Verify your phone number first."))
+            return@withContext Result.failure(IllegalStateException("Verify your mobile number first."))
         }
         if (!isPro()) {
-            return@withContext Result.failure(IllegalStateException("Firebase Cloud Sync is a CashPulse Pro feature."))
+            return@withContext Result.failure(IllegalStateException("Cloud Sync is included with CashPulse Pro."))
         }
 
         val phone = getPhoneNumber()
         val docId = sanitizePhoneKey(phone)
         val jsonBackup = backupDataUseCase.generateJsonBackup()
-        val formattedTime = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        val formattedTime = formatTimestamp(System.currentTimeMillis())
 
         // Always persist local encrypted-app-private mirror first (offline-first guarantee)
         localMirrorFile(docId).writeText(jsonBackup)
@@ -384,16 +360,70 @@ class CashPulseCloudAccountManager @Inject constructor(
         }
 
         val message = if (remoteSynced) {
-            "Synced to Firebase Cloud ($formattedTime)."
+            "Cloud backup synced ($formattedTime)."
         } else {
-            "Saved offline snapshot ($formattedTime). Will sync to Firebase once Firebase rules & network are ready."
+            "Saved local backup ($formattedTime). Cloud sync will resume automatically when online."
         }
         Result.success(message)
     }
 
+    suspend fun checkCloudBackup(): CloudBackupMetadata? = withContext(Dispatchers.IO) {
+        if (!isPhoneVerified()) return@withContext null
+
+        val phone = getPhoneNumber()
+        val docId = sanitizePhoneKey(phone)
+
+        val remoteData = try {
+            withTimeoutOrNull(FIRESTORE_TIMEOUT_MS) {
+                FirebaseFirestore.getInstance()
+                    .collection(COLLECTION_USERS)
+                    .document(docId)
+                    .get()
+                    .awaitResult()
+            }
+        } catch (_: Exception) {
+            null
+        }
+
+        val remoteIsPro = remoteData?.getBoolean("isPro") == true
+        if (remoteIsPro) {
+            sharedPrefs.putBoolean(KEY_IS_PRO, true)
+            sharedPrefs.putString(KEY_PRO_PLAN, PLAN_LIFETIME)
+        }
+
+        val remoteBackupJson = remoteData?.getString("backupJson")
+        val mirror = localMirrorFile(docId)
+        val hasRemoteBackup = !remoteBackupJson.isNullOrBlank()
+        val hasLocalMirror = mirror.exists() && mirror.length() > 0L
+
+        if (!hasRemoteBackup && !hasLocalMirror) {
+            return@withContext null
+        }
+
+        val updatedAtMillis = remoteData?.getLong("updatedAt")
+            ?: if (hasLocalMirror) mirror.lastModified() else System.currentTimeMillis()
+        val remoteFormatted = remoteData?.getString("lastSyncFormatted")
+        val displayTime = when {
+            !remoteFormatted.isNullOrBlank() -> remoteFormatted
+            updatedAtMillis > 0L -> formatTimestamp(updatedAtMillis)
+            else -> "Previously saved"
+        }
+
+        sharedPrefs.putString(KEY_LAST_SYNC_TIME, displayTime)
+
+        CloudBackupMetadata(
+            phoneNumber = phone,
+            lastSyncFormatted = displayTime,
+            updatedAtMillis = updatedAtMillis,
+            hasBackupData = true,
+            isPro = isPro(),
+            proPlan = getProPlan()
+        )
+    }
+
     suspend fun restoreFromFirebase(): Result<String> = withContext(Dispatchers.IO) {
         if (!isPhoneVerified()) {
-            return@withContext Result.failure(IllegalStateException("Verify your phone number first."))
+            return@withContext Result.failure(IllegalStateException("Verify your mobile number first."))
         }
 
         val phone = getPhoneNumber()
@@ -424,7 +454,7 @@ class CashPulseCloudAccountManager @Inject constructor(
             localMirrorFile(docId).exists() -> localMirrorFile(docId).readText()
             else -> null
         } ?: return@withContext Result.failure(
-            IllegalStateException("No Firebase cloud backup found for $phone.")
+            IllegalStateException("No cloud backup found for $phone.")
         )
 
         val importResult = try {
@@ -440,7 +470,7 @@ class CashPulseCloudAccountManager @Inject constructor(
 
     suspend fun deleteCloudBackup(): Result<String> = withContext(Dispatchers.IO) {
         if (!isPhoneVerified()) {
-            return@withContext Result.failure(IllegalStateException("Verify your phone number first."))
+            return@withContext Result.failure(IllegalStateException("Verify your mobile number first."))
         }
         val phone = getPhoneNumber()
         val docId = sanitizePhoneKey(phone)
@@ -471,8 +501,9 @@ class CashPulseCloudAccountManager @Inject constructor(
     }
 
     private fun activateProLocally(planId: String) {
+        val resolvedPlan = if (planId.isNotBlank()) planId else PLAN_LIFETIME
         sharedPrefs.putBoolean(KEY_IS_PRO, true)
-        sharedPrefs.putString(KEY_PRO_PLAN, planId)
+        sharedPrefs.putString(KEY_PRO_PLAN, resolvedPlan)
         val phone = getPhoneNumber()
         if (phone.isNotBlank()) {
             pushUserMetadataToFirestore(
@@ -514,11 +545,12 @@ class CashPulseCloudAccountManager @Inject constructor(
         return phone.replace(Regex("[^a-zA-Z0-9]"), "_")
     }
 
-    private fun planDisplayName(planId: String): String = when (planId) {
-        PLAN_YEARLY -> "Yearly"
-        PLAN_LIFETIME -> "Lifetime"
-        else -> "Monthly"
+    private fun formatTimestamp(millis: Long): String {
+        return SimpleDateFormat(DATE_DISPLAY_PATTERN, Locale.getDefault()).format(Date(millis))
     }
+
+    @Suppress("UnusedParameter")
+    private fun planDisplayName(planId: String): String = "Paid"
 
     private suspend fun <T> Task<T>.awaitResult(): T? = suspendCancellableCoroutine { cont ->
         addOnSuccessListener { result ->

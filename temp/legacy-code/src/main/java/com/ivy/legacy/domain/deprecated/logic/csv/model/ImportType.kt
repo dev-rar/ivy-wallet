@@ -41,7 +41,7 @@ enum class ImportType {
     }
 
     fun appId(): String = when (this) {
-        IVY -> "com.ivy.wallet"
+        IVY -> "com.cashpulse.wallet"
         MONEY_MANAGER -> "com.realbyteapps.moneymanagerfree"
         WALLET_BY_BUDGET_BAKERS -> "com.droid4you.application.wallet"
         SPENDEE -> "com.cleevio.spendee"
@@ -55,7 +55,7 @@ enum class ImportType {
 
     @DrawableRes
     fun logo(): Int = when (this) {
-        IVY -> R.drawable.ivywallet_logo
+        IVY -> R.drawable.cashpulse_brand_emblem
         MONEY_MANAGER -> R.drawable.moneymanager_logo
         WALLET_BY_BUDGET_BAKERS -> R.drawable.wallet_by_budgetbakers_logo
         SPENDEE -> R.drawable.spendee_logo
@@ -68,7 +68,7 @@ enum class ImportType {
     }
 
     fun listName(): String = when (this) {
-        IVY -> "Ivy Wallet"
+        IVY -> "CashPulse"
         MONEY_MANAGER -> "Money Manager"
         WALLET_BY_BUDGET_BAKERS -> "Wallet by BudgetBakers"
         SPENDEE -> "Spendee"
@@ -81,7 +81,7 @@ enum class ImportType {
     }
 
     fun appName(): String = when (this) {
-        IVY -> "Ivy Wallet"
+        IVY -> "CashPulse"
         else -> listName()
     }
 }

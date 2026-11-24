@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +68,6 @@ private fun ContributorsUi(
     onEvent: (ContributorsEvent) -> Unit
 ) {
     val nav = navigation()
-    val browser = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -101,11 +99,6 @@ private fun ContributorsUi(
                     onEvent(contributorsEvent)
                 }
             )
-        },
-        floatingActionButton = {
-            GitHubButton {
-                browser.openUri("https://github.com/Ivy-Apps/ivy-wallet")
-            }
         }
     )
 }
@@ -211,9 +204,7 @@ private fun ProjectInfoRow(
                 )
             },
             info = "${projectRepositoryInfo.projectInfo.forks} forks",
-            onClick = {
-                browser.openUri("https://github.com/Ivy-Apps/ivy-wallet/fork")
-            }
+            onClick = {}
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -337,24 +328,6 @@ private fun ContributorCard(contributor: Contributor) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun GitHubButton(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    FloatingActionButton(
-        modifier = modifier,
-        onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.github_logo),
-            contentDescription = "GitHub"
-        )
     }
 }
 

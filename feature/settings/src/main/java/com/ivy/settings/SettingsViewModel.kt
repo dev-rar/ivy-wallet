@@ -31,8 +31,6 @@ import com.ivy.legacy.utils.getISOFormattedDateTime
 import com.ivy.legacy.utils.ioThread
 import com.ivy.legacy.utils.timeNowUTC
 import com.ivy.legacy.utils.uiThread
-import com.ivy.navigation.Navigation
-import com.ivy.navigation.OnboardingScreen
 import com.ivy.ui.ComposeViewModel
 import com.ivy.wallet.domain.action.global.StartDayOfMonthAct
 import com.ivy.wallet.domain.action.global.UpdateStartDayOfMonthAct
@@ -61,7 +59,6 @@ class SettingsViewModel @Inject constructor(
     private val settingsWriter: WriteSettingsDao,
     private val exportCsvUseCase: ExportCsvUseCase,
     private val cloudAccountManager: CashPulseCloudAccountManager,
-    private val nav: Navigation,
     @ApplicationContext private val context: Context
 ) : ComposeViewModel<SettingsState, SettingsEvent>() {
 
@@ -75,14 +72,9 @@ class SettingsViewModel @Inject constructor(
     private val treatTransfersAsIncomeExpense = mutableStateOf(false)
     private val startDateOfMonth = mutableIntStateOf(1)
     private val progressState = mutableStateOf(false)
-    private val phoneNumber = mutableStateOf("")
     private val isPhoneVerified = mutableStateOf(false)
     private val isPro = mutableStateOf(false)
     private val proPlan = mutableStateOf("")
-    private val lastCloudSync = mutableStateOf("Never")
-    private val bankAutoTrackEnabled = mutableStateOf(false)
-    private val cloudStatusMessage = mutableStateOf<String?>(null)
-    private val pendingVerificationId = mutableStateOf<String?>(null)
 
     @Composable
     override fun uiState(): SettingsState {
@@ -102,14 +94,9 @@ class SettingsViewModel @Inject constructor(
             progressState = getProgressState(),
             hideIncome = getHideIncome(),
             languageOptionVisible = isLanguageOptionVisible(),
-            phoneNumber = phoneNumber.value,
             isPhoneVerified = isPhoneVerified.value,
             isPro = isPro.value,
-            proPlan = proPlan.value,
-            lastCloudSync = lastCloudSync.value,
-            bankAutoTrackEnabled = bankAutoTrackEnabled.value,
-            cloudStatusMessage = cloudStatusMessage.value,
-            pendingVerificationId = pendingVerificationId.value
+            proPlan = proPlan.value
         )
     }
 
@@ -127,12 +114,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun refreshCloudState() {
-        phoneNumber.value = cloudAccountManager.getPhoneNumber()
         isPhoneVerified.value = cloudAccountManager.isPhoneVerified()
         isPro.value = cloudAccountManager.isPro()
         proPlan.value = cloudAccountManager.getProPlan()
-        lastCloudSync.value = cloudAccountManager.getLastSyncTime()
-        bankAutoTrackEnabled.value = cloudAccountManager.isBankAutoTrackEnabled()
     }
 
     private suspend fun initializeCurrency() {
@@ -264,123 +248,6 @@ class SettingsViewModel @Inject constructor(
             SettingsEvent.DeleteCloudUserData -> deleteCloudUserData()
             SettingsEvent.DeleteAllUserData -> deleteAllUserData()
             SettingsEvent.SwitchLanguage -> switchLanguage()
-
-            is SettingsEvent.SendPhoneOtp -> sendPhoneOtp(event.activity, event.phoneNumber)
-            is SettingsEvent.VerifyPhoneOtp -> verifyPhoneOtp(event.phoneNumber, event.otpCode)
-            SettingsEvent.LogoutPhone -> {
-                cloudAccountManager.logoutPhone()
-                pendingVerificationId.value = null
-                cloudStatusMessage.value = "Signed out. Phone verification required to continue."
-                refreshCloudState()
-                nav.navigateTo(OnboardingScreen)
-                nav.resetBackStack()
-            }
-            is SettingsEvent.UpgradeToPro -> upgradeToPro(event.activity, event.planId)
-            SettingsEvent.SyncToFirebaseCloud -> syncToFirebaseCloud()
-            SettingsEvent.RestoreFromFirebaseCloud -> restoreFromFirebaseCloud()
-            is SettingsEvent.SetBankAutoTrack -> setBankAutoTrack(event.enabled)
-            SettingsEvent.ClearCloudMessage -> cloudStatusMessage.value = null
-        }
-    }
-
-    private fun sendPhoneOtp(activity: android.app.Activity?, rawPhone: String) {
-        cloudAccountManager.sendOtp(
-            activity = activity,
-            rawPhone = rawPhone,
-            onCodeSent = { verificationId, note ->
-                pendingVerificationId.value = verificationId
-                cloudStatusMessage.value = note
-            },
-            onVerified = { _ ->
-                pendingVerificationId.value = null
-                cloudStatusMessage.value = "Phone verified automatically!"
-                refreshCloudState()
-            },
-            onError = { msg ->
-                cloudStatusMessage.value = msg
-            }
-        )
-    }
-
-    private fun verifyPhoneOtp(rawPhone: String, otpCode: String) {
-        viewModelScope.launch {
-            progressState.value = true
-            val result = cloudAccountManager.verifyOtp(
-                verificationId = pendingVerificationId.value,
-                otpCode = otpCode,
-                rawPhone = rawPhone
-            )
-            progressState.value = false
-            result.fold(
-                onSuccess = { msg ->
-                    pendingVerificationId.value = null
-                    cloudStatusMessage.value = msg
-                    refreshCloudState()
-                },
-                onFailure = { err ->
-                    cloudStatusMessage.value = err.message ?: "OTP verification failed."
-                }
-            )
-        }
-    }
-
-    private fun upgradeToPro(activity: android.app.Activity?, planId: String) {
-        cloudAccountManager.upgradeToPro(activity, planId) { _, msg ->
-            cloudStatusMessage.value = msg
-            refreshCloudState()
-        }
-    }
-
-    private fun syncToFirebaseCloud() {
-        viewModelScope.launch {
-            progressState.value = true
-            val result = cloudAccountManager.syncToFirebase()
-            progressState.value = false
-            result.fold(
-                onSuccess = { msg ->
-                    cloudStatusMessage.value = msg
-                    refreshCloudState()
-                },
-                onFailure = { err ->
-                    cloudStatusMessage.value = err.message ?: "Firebase sync failed."
-                }
-            )
-        }
-    }
-
-    private fun restoreFromFirebaseCloud() {
-        viewModelScope.launch {
-            progressState.value = true
-            val result = cloudAccountManager.restoreFromFirebase()
-            progressState.value = false
-            result.fold(
-                onSuccess = { msg ->
-                    cloudStatusMessage.value = msg
-                    refreshCloudState()
-                },
-                onFailure = { err ->
-                    cloudStatusMessage.value = err.message ?: "Firebase restore failed."
-                }
-            )
-        }
-    }
-
-    private fun setBankAutoTrack(enabled: Boolean) {
-        if (enabled && !cloudAccountManager.isPro()) {
-            cloudStatusMessage.value = "Upgrade to CashPulse Pro to unlock Bank Alert Auto-Tracking."
-            return
-        }
-        cloudAccountManager.setBankAutoTrackEnabled(enabled)
-        bankAutoTrackEnabled.value = enabled
-        if (enabled) {
-            cloudStatusMessage.value = "Enable 'CashPulse Bank Auto-Tracker' in Notification Access settings to auto-log bank alerts."
-            try {
-                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
-            } catch (_: Exception) {
-            }
         }
     }
 
@@ -417,7 +284,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun exportToCSV(rootScreen: RootScreen) {
         ivyContext.createNewFile(
-            "IvyWalletExport_${
+            "CashPulseExport_${
                 timeNowUTC().getISOFormattedDateTime()
             }.csv"
         ) { fileUri ->
@@ -435,7 +302,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun exportToZip(rootScreen: RootScreen) {
         ivyContext.createNewFile(
-            "IvyWalletBackup_${
+            "CashPulseBackup_${
                 timeNowUTC().getISOFormattedDateTime()
             }.zip"
         ) { fileUri ->
@@ -524,10 +391,9 @@ class SettingsViewModel @Inject constructor(
     private fun deleteCloudUserData() {
         viewModelScope.launch {
             progressState.value = true
-            val result = cloudAccountManager.deleteCloudBackup()
+            cloudAccountManager.deleteCloudBackup()
             cloudLogout()
             refreshCloudState()
-            cloudStatusMessage.value = result.getOrElse { it.localizedMessage ?: "Cloud backup reset." }
             progressState.value = false
         }
     }

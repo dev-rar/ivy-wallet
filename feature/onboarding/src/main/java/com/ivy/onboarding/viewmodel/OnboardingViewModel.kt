@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.ivy.base.legacy.SharedPrefs
 import com.ivy.base.legacy.Theme
 import com.ivy.data.cloud.CashPulseCloudAccountManager
+import com.ivy.data.cloud.CloudBackupMetadata
 import com.ivy.data.db.dao.read.AccountDao
 import com.ivy.data.db.dao.read.SettingsDao
 import com.ivy.data.db.dao.write.WriteSettingsDao
@@ -64,7 +65,7 @@ class OnboardingViewModel @Inject constructor(
     private val cloudAccountManager: CashPulseCloudAccountManager,
 ) : ComposeViewModel<OnboardingDetailState, OnboardingEvent>() {
 
-    private val _state = mutableStateOf(OnboardingState.SPLASH)
+    private val _state = mutableStateOf(OnboardingState.LOGIN)
     val state: State<OnboardingState> = _state
 
     private val _currency = mutableStateOf(IvyCurrency.getDefault())
@@ -77,6 +78,8 @@ class OnboardingViewModel @Inject constructor(
     private val _pendingVerificationId = mutableStateOf<String?>(null)
     private val _cloudStatusMessage = mutableStateOf<String?>(null)
     private val _isPro = mutableStateOf(cloudAccountManager.isPro())
+    private val _detectedCloudBackup = mutableStateOf<CloudBackupMetadata?>(null)
+    private val _isRestoringCloudBackup = mutableStateOf(false)
 
     @Composable
     override fun uiState(): OnboardingDetailState {
@@ -88,7 +91,9 @@ class OnboardingViewModel @Inject constructor(
             categorySuggestions = _categorySuggestions.value,
             otpSent = _pendingVerificationId.value != null,
             cloudStatusMessage = _cloudStatusMessage.value,
-            isPro = _isPro.value
+            isPro = _isPro.value,
+            detectedCloudBackup = _detectedCloudBackup.value,
+            isRestoringCloudBackup = _isRestoringCloudBackup.value
         )
     }
 
@@ -114,6 +119,9 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             initiateSettings(isSystemDarkMode)
 
+            _detectedCloudBackup.value = cloudAccountManager.detectedCloudBackup
+            _isPro.value = cloudAccountManager.isPro()
+
             router.initBackHandling(
                 screen = screen,
                 viewModelScope = viewModelScope,
@@ -122,7 +130,12 @@ class OnboardingViewModel @Inject constructor(
                 }
             )
 
-            router.splashNext()
+            if (cloudAccountManager.pendingContinueOnboarding) {
+                cloudAccountManager.pendingContinueOnboarding = false
+                router.offlineAccountNext()
+            } else {
+                router.splashNext()
+            }
         }
     }
 
@@ -175,11 +188,14 @@ class OnboardingViewModel @Inject constructor(
                 is OnboardingEvent.SetBaseCurrency -> setBaseCurrency(event.baseCurrency)
                 OnboardingEvent.StartFresh -> startFresh()
                 OnboardingEvent.StartImport -> startImport()
+                OnboardingEvent.RestoreCloudBackup -> restoreCloudBackup()
             }
         }
     }
 
     private suspend fun loginOfflineAccount() {
+        cloudAccountManager.detectedCloudBackup = null
+        _detectedCloudBackup.value = null
         router.offlineAccountNext()
     }
 
@@ -205,7 +221,7 @@ class OnboardingViewModel @Inject constructor(
     }
 
     private suspend fun verifyPhoneOtpAndRestore(rawPhone: String, otpCode: String) {
-        _cloudStatusMessage.value = "Verifying OTP & checking Firebase backup..."
+        _cloudStatusMessage.value = "Verifying code & checking your cloud backup..."
         val result = cloudAccountManager.verifyOtp(
             verificationId = _pendingVerificationId.value,
             otpCode = otpCode,
@@ -240,6 +256,25 @@ class OnboardingViewModel @Inject constructor(
         router.startImport()
     }
 
+    private suspend fun restoreCloudBackup() {
+        if (_isRestoringCloudBackup.value) return
+        _isRestoringCloudBackup.value = true
+        _cloudStatusMessage.value = null
+        val restoreResult = cloudAccountManager.restoreFromFirebase()
+        _isRestoringCloudBackup.value = false
+        restoreResult.fold(
+            onSuccess = {
+                cloudAccountManager.detectedCloudBackup = null
+                _detectedCloudBackup.value = null
+                router.categoriesNext(baseCurrency = _currency.value)
+            },
+            onFailure = { error ->
+                _cloudStatusMessage.value = error.localizedMessage
+                    ?: "Cloud restore failed. Please try again."
+            }
+        )
+    }
+
     fun importSkip() {
         router.importSkip()
     }
@@ -249,6 +284,8 @@ class OnboardingViewModel @Inject constructor(
     }
 
     private fun startFresh() {
+        cloudAccountManager.detectedCloudBackup = null
+        _detectedCloudBackup.value = null
         router.startFresh()
     }
     // Step 2 ---------------------------------------------------------------------------------------

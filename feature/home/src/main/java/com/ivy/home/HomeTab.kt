@@ -218,6 +218,11 @@ fun BoxWithConstraintsScope.HomeUi(
         balance = uiState.balance.toDouble(),
         currency = baseCurrency,
         buffer = uiState.buffer.amount.toDouble(),
+        isPro = uiState.isPro,
+        isPhoneVerified = uiState.isPhoneVerified,
+        lastCloudSync = uiState.lastCloudSync,
+        isBackingUp = uiState.isBackingUp,
+        backupStatusMessage = uiState.backupStatusMessage,
         onSwitchTheme = {
             onEvent(HomeEvent.SwitchTheme)
         },
@@ -231,6 +236,12 @@ fun BoxWithConstraintsScope.HomeUi(
         },
         onCurrencyClick = {
             currencyModalVisible = true
+        },
+        onManualBackup = {
+            onEvent(HomeEvent.ManualCloudBackup)
+        },
+        onClearBackupMessage = {
+            onEvent(HomeEvent.ClearBackupMessage)
         }
     )
 

@@ -24,7 +24,6 @@ import com.ivy.wallet.domain.deprecated.logic.notification.TransactionReminderLo
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class OnboardingRouter(
@@ -106,8 +105,6 @@ class OnboardingRouter(
     // ------------------------------------- Step 0 - Splash ----------------------------------------
     suspend fun splashNext() {
         if (state.value == OnboardingState.SPLASH) {
-            delay(1000)
-
             state.value = OnboardingState.LOGIN
         }
     }
@@ -244,7 +241,7 @@ class OnboardingRouter(
     }
 
     private fun resetState() {
-        state.value = OnboardingState.SPLASH
+        state.value = OnboardingState.LOGIN
         opGoogleSignIn.value = null
     }
 

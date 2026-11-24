@@ -145,3 +145,10 @@ data object ReleasesScreen : Screen
 data object DisclaimerScreen : Screen
 
 data object PollScreen : Screen
+
+data class SubscriptionScreen(
+    val launchedFromOnboarding: Boolean = false
+) : Screen {
+    override val isLegacy: Boolean
+        get() = true
+}

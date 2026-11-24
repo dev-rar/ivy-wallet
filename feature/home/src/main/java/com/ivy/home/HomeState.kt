@@ -34,5 +34,10 @@ data class HomeState(
     val hideBalance: Boolean,
     val hideIncome: Boolean,
     val expanded: Boolean,
-    val shouldShowAccountSpecificColorInTransactions: Boolean
+    val shouldShowAccountSpecificColorInTransactions: Boolean,
+    val isPro: Boolean = false,
+    val isPhoneVerified: Boolean = false,
+    val lastCloudSync: String = "Never",
+    val isBackingUp: Boolean = false,
+    val backupStatusMessage: String? = null
 )

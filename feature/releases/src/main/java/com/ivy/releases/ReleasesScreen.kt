@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,7 +52,6 @@ private fun ReleasesUi(
     uiState: ReleasesState,
     onEvent: (ReleasesEvent) -> Unit
 ) {
-    val browser = LocalUriHandler.current
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,11 +62,6 @@ private fun ReleasesUi(
                     BackButton()
                 }
             )
-        },
-        floatingActionButton = {
-            GitHubButton {
-                browser.openUri("https://github.com/Ivy-Apps/ivy-wallet")
-            }
         }
     ) { innerPadding ->
         LazyColumn(
@@ -229,23 +221,5 @@ private fun ReleasesErrorState(
         ) {
             Text(text = stringResource(R.string.try_again))
         }
-    }
-}
-
-@Composable
-private fun GitHubButton(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    FloatingActionButton(
-        modifier = modifier,
-        onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.github_logo),
-            contentDescription = "GitHub"
-        )
     }
 }

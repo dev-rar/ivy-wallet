@@ -3,10 +3,12 @@ package com.ivy.home
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -18,10 +20,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,30 +44,30 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.ivy.base.legacy.Theme
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
 import com.ivy.design.utils.thenIf
-import com.ivy.legacy.Constants
 import com.ivy.legacy.ivyWalletCtx
 import com.ivy.legacy.rootScreen
 import com.ivy.legacy.utils.clickableNoIndication
 import com.ivy.legacy.utils.colorLerp
 import com.ivy.legacy.utils.lerp
 import com.ivy.legacy.utils.navigationBarInset
-import com.ivy.legacy.utils.openUrl
 import com.ivy.legacy.utils.rememberInteractionSource
 import com.ivy.legacy.utils.rememberSwipeListenerState
 import com.ivy.legacy.utils.springBounce
@@ -72,10 +82,12 @@ import com.ivy.navigation.PlannedPaymentsScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.SearchScreen
 import com.ivy.navigation.SettingsScreen
+import com.ivy.navigation.SubscriptionScreen
 import com.ivy.navigation.navigation
 import com.ivy.ui.R
-import com.ivy.wallet.ui.theme.Blue
 import com.ivy.wallet.ui.theme.Gray
+import com.ivy.wallet.ui.theme.Green
+import com.ivy.wallet.ui.theme.White
 import com.ivy.wallet.ui.theme.components.BufferBattery
 import com.ivy.wallet.ui.theme.components.CircleButtonFilled
 import com.ivy.wallet.ui.theme.components.IvyIcon
@@ -100,6 +112,13 @@ fun BoxWithConstraintsScope.MoreMenu(
     onBufferClick: () -> Unit,
     onCurrencyClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isPro: Boolean = false,
+    isPhoneVerified: Boolean = false,
+    lastCloudSync: String = "Never",
+    isBackingUp: Boolean = false,
+    backupStatusMessage: String? = null,
+    onManualBackup: () -> Unit = {},
+    onClearBackupMessage: () -> Unit = {},
 ) {
     val ivyContext = ivyWalletCtx()
 
@@ -192,8 +211,15 @@ fun BoxWithConstraintsScope.MoreMenu(
                 balance = balance,
                 buffer = buffer,
                 currency = currency,
+                isPro = isPro,
+                isPhoneVerified = isPhoneVerified,
+                lastCloudSync = lastCloudSync,
+                isBackingUp = isBackingUp,
+                backupStatusMessage = backupStatusMessage,
                 onBufferClick = onBufferClick,
-                onCurrencyClick = onCurrencyClick
+                onCurrencyClick = onCurrencyClick,
+                onManualBackup = onManualBackup,
+                onClearBackupMessage = onClearBackupMessage
             )
         }
     }
@@ -228,10 +254,17 @@ private fun ColumnScope.Content(
     buffer: Double,
     currency: String,
     theme: Theme,
+    isPro: Boolean,
+    isPhoneVerified: Boolean,
+    lastCloudSync: String,
+    isBackingUp: Boolean,
+    backupStatusMessage: String?,
 
     onSwitchTheme: () -> Unit,
     onBufferClick: () -> Unit,
     onCurrencyClick: () -> Unit,
+    onManualBackup: () -> Unit,
+    onClearBackupMessage: () -> Unit,
 ) {
     Spacer(Modifier.height(24.dp))
 
@@ -246,6 +279,7 @@ private fun ColumnScope.Content(
 
     QuickAccess(
         theme = theme,
+        isPro = isPro,
         onSwitchTheme = onSwitchTheme
     )
 
@@ -260,7 +294,20 @@ private fun ColumnScope.Content(
 
     Spacer(Modifier.height(16.dp))
 
-    OpenSource()
+    CloudBackupDrawerCard(
+        isPro = isPro,
+        isPhoneVerified = isPhoneVerified,
+        lastCloudSync = lastCloudSync,
+        isBackingUp = isBackingUp,
+        backupStatusMessage = backupStatusMessage,
+        onManualBackup = onManualBackup,
+        onClearBackupMessage = onClearBackupMessage,
+        onOpenSubscription = {
+            nav.navigateTo(SubscriptionScreen(launchedFromOnboarding = false))
+        }
+    )
+
+    Spacer(Modifier.height(24.dp))
 
     Spacer(Modifier.weight(1f))
 }
@@ -303,48 +350,157 @@ private fun SearchButton(
 }
 
 @Composable
-private fun ColumnScope.OpenSource() {
-    val nav = navigation()
-    Row(
+private fun ColumnScope.CloudBackupDrawerCard(
+    isPro: Boolean,
+    isPhoneVerified: Boolean,
+    lastCloudSync: String,
+    isBackingUp: Boolean,
+    backupStatusMessage: String?,
+    onManualBackup: () -> Unit,
+    onClearBackupMessage: () -> Unit,
+    onOpenSubscription: () -> Unit
+) {
+    val tierColor = if (isPro) Green else Color(0xFFE6C365)
+    val borderColor = if (isPro) Green.copy(alpha = 0.35f) else White.copy(alpha = 0.14f)
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(UI.shapes.r4)
-            .background(UI.colors.pure)
-            .clickable {
-                nav.navigateTo(SettingsScreen)
-            }
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF161B26), Color(0xFF1F2736))
+                )
+            )
+            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
+            .padding(16.dp)
     ) {
-        Spacer(Modifier.width(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.cashpulse_brand_emblem),
+                    contentDescription = "CashPulse",
+                    modifier = Modifier.size(38.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Cloud Backup",
+                        style = UI.typo.b2.style(
+                            color = White,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    )
+                    Text(
+                        text = "Last backup: $lastCloudSync",
+                        style = UI.typo.c.style(
+                            color = White.copy(alpha = 0.7f),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+            }
 
-        IvyIcon(
-            icon = R.drawable.ic_custom_safe_m,
-            tint = com.ivy.wallet.ui.theme.Green
+            Box(
+                modifier = Modifier
+                    .clip(UI.shapes.rFull)
+                    .background(tierColor.copy(alpha = 0.18f))
+                    .thenIf(!isPro) {
+                        clickable { onOpenSubscription() }
+                    }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (isPro) "Paid" else "Free",
+                    style = UI.typo.nC.style(
+                        color = tierColor,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Text(
+            text = "We automatically back up your data daily at the end of the day, and you can also run a manual backup anytime using the button below.",
+            style = UI.typo.c.style(
+                color = White.copy(alpha = 0.78f),
+                fontWeight = FontWeight.Medium
+            )
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 24.dp)
-        ) {
+        if (!backupStatusMessage.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
             Text(
-                text = "CashPulse Cloud & Pro Accounting",
-                style = UI.typo.b2.style(
-                    fontWeight = FontWeight.ExtraBold
-                )
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text = "Phone OTP Backup • Balance Sheet • PDF Statements",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Green.copy(alpha = 0.15f))
+                    .clickable { onClearBackupMessage() }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                text = backupStatusMessage,
                 style = UI.typo.c.style(
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Blue
+                    color = Green,
+                    fontWeight = FontWeight.Bold
                 )
             )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (!isPro) {
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                onClick = onOpenSubscription,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Green,
+                    contentColor = White
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Unlock Premium Features",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 13.sp
+                )
+            }
+        } else {
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                enabled = !isBackingUp,
+                onClick = onManualBackup,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Green,
+                    contentColor = White
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = if (isBackingUp) "Backing up..." else "Backup Now",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 13.sp
+                )
+            }
         }
     }
 }
@@ -401,6 +557,7 @@ private fun ColumnScope.Buffer(
 @Composable
 private fun QuickAccess(
     theme: Theme,
+    isPro: Boolean,
     onSwitchTheme: () -> Unit
 ) {
     Column {
@@ -501,7 +658,7 @@ private fun QuickAccess(
             val rootScreen = rootScreen()
             MoreMenuButton(
                 icon = R.drawable.home_more_menu_share,
-                label = stringResource(R.string.share_ivy)
+                label = "Share"
             ) {
                 rootScreen.shareIvyWallet()
             }
@@ -511,6 +668,7 @@ private fun QuickAccess(
             MoreMenuButton(
                 icon = R.drawable.home_more_menu_reports,
                 label = stringResource(R.string.reports),
+                locked = !isPro,
             ) {
                 nav.navigateTo(ReportScreen)
             }
@@ -546,19 +704,40 @@ private fun MoreMenuButton(
     backgroundColor: Color = UI.colors.pure,
     tint: Color = UI.colors.pureInverse,
     expandPadding: Dp = 14.dp,
+    locked: Boolean = false,
 
     onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CircleButtonFilled(
-            icon = icon,
-            backgroundColor = backgroundColor,
-            tint = tint,
-            clickAreaPadding = expandPadding,
-            onClick = onClick
-        )
+        Box(contentAlignment = Alignment.Center) {
+            CircleButtonFilled(
+                icon = icon,
+                backgroundColor = backgroundColor,
+                tint = tint,
+                clickAreaPadding = expandPadding,
+                onClick = onClick
+            )
+            if (locked) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1B1F2A))
+                        .border(1.dp, Color(0xFFE6C365), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = "Locked",
+                        tint = Color(0xFFE6C365),
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(8.dp))
 

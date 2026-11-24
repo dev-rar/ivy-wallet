@@ -60,6 +60,7 @@ import com.ivy.legacy.utils.clickableNoIndication
 import com.ivy.legacy.utils.rememberInteractionSource
 import com.ivy.navigation.PieChartStatisticScreen
 import com.ivy.navigation.ReportScreen
+import com.ivy.navigation.SubscriptionScreen
 import com.ivy.navigation.navigation
 import com.ivy.reports.components.AnnualSummaryCard
 import com.ivy.reports.components.BalanceSheetCard
@@ -166,13 +167,8 @@ private fun BoxWithConstraintsScope.UI(
             item {
                 ReportsProPaywallCard(
                     proStatusMessage = state.proStatusMessage,
-                    onSelectPlan = { planId ->
-                        onEventHandler(
-                            ReportScreenEvent.OnUpgradeToPro(
-                                activity = context as? android.app.Activity,
-                                planId = planId
-                            )
-                        )
+                    onUnlockPaid = {
+                        nav.navigateTo(SubscriptionScreen(launchedFromOnboarding = false))
                     }
                 )
             }
@@ -546,7 +542,7 @@ private fun NoFilterEmptyState(
 @Composable
 private fun ReportsProPaywallCard(
     proStatusMessage: String?,
-    onSelectPlan: (String) -> Unit
+    onUnlockPaid: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -562,7 +558,7 @@ private fun ReportsProPaywallCard(
             .padding(20.dp)
     ) {
         Text(
-            text = "CASHPULSE PRO FEATURE",
+            text = "CASHPULSE PAID FEATURE",
             style = UI.typo.c.style(
                 color = Green,
                 fontWeight = FontWeight.ExtraBold
@@ -570,7 +566,7 @@ private fun ReportsProPaywallCard(
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "Unlock Reports, Balance Sheet & PDF Statements",
+            text = "Unlock Reports, Balance Sheet & Cloud Backup",
             style = UI.typo.h2.style(
                 color = White,
                 fontWeight = FontWeight.ExtraBold
@@ -578,12 +574,12 @@ private fun ReportsProPaywallCard(
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            text = "Upgrade to CashPulse Pro to unlock:\n" +
+            text = "Upgrade once (\$100 lifetime) to unlock:\n" +
                 "• Annual & Monthly Cash-Flow Reports\n" +
                 "• True Balance Sheet & Net Worth (Assets vs Liabilities)\n" +
                 "• Category Spending Trends & Printable PDF Statements\n" +
-                "• Automatic Permanent Firebase Cloud Backup\n" +
-                "• On-Device Bank SMS & Notification Auto-Tracker",
+                "• Daily End-of-Day & Manual Cloud Backup\n" +
+                "• Cross-Device Restore via Verified Mobile Number",
             style = UI.typo.b2.style(
                 color = White.copy(alpha = 0.85f),
                 fontWeight = FontWeight.Medium
@@ -604,40 +600,12 @@ private fun ReportsProPaywallCard(
         Spacer(Modifier.height(16.dp))
 
         Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_MONTHLY) },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            onClick = onUnlockPaid,
             colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = White),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("Monthly Pro — \$10 / month (Google Pay / Card)", fontWeight = FontWeight.ExtraBold)
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_YEARLY) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = White.copy(alpha = 0.14f),
-                contentColor = White
-            ),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text("Yearly Pro — \$100 / year (Save \$20)", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onSelectPlan(CashPulseCloudAccountManager.PLAN_LIFETIME) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = White.copy(alpha = 0.08f),
-                contentColor = White
-            ),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text("Lifetime Pro — \$500 One-Time", fontWeight = FontWeight.Bold)
+            Text("Unlock Paid Tier — \$100 One-Time", fontWeight = FontWeight.ExtraBold)
         }
     }
 }

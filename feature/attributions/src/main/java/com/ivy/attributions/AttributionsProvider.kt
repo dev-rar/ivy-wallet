@@ -6,12 +6,6 @@ import javax.inject.Inject
 
 class AttributionsProvider @Inject constructor() {
     private val attributionItems = persistentListOf(
-        AttributionItem.Divider(sectionName = "Open Source Foundation (GNU GPLv3)"),
-        AttributionItem.Attribution(
-            name = "Ivy Wallet (GNU GPLv3)",
-            link = "https://github.com/Ivy-Apps/ivy-wallet"
-        ),
-
         AttributionItem.Divider(sectionName = "Icons"),
         AttributionItem.Attribution(name = "iconsax", link = "https://iconsax.io"),
         AttributionItem.Attribution(
@@ -92,7 +86,7 @@ class AttributionsProvider @Inject constructor() {
         ),
         AttributionItem.Attribution(
             name = "Github Actions",
-            link = "https://github.com/Ivy-Apps/ivy-wallet/actions"
+            link = "https://github.com/features/actions"
         ),
         AttributionItem.Attribution(
             name = "Timber",
