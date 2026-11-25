@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Production Firestore Security Rules for CashPulse.
+// Note: Firebase Console edits (such as owner Paid overrides) and backend Cloud Functions
+// using the Firebase Admin SDK automatically bypass these client rules, while mobile
+// clients are strictly prevented from reading other users' data or self-granting Paid status.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /cashpulse_users/{docId} {
+      function isOwner(targetDocId) {
+        return request.auth != null
+          && request.auth.token.phone_number != null
+          && request.auth.token.phone_number.replace('[^a-zA-Z0-9]', '_') == targetDocId;
+      }
+
+      allow read: if isOwner(docId);
+
+      allow create: if isOwner(docId)
+        && (!('isPro' in request.resource.data) || request.resource.data.isPro == false)
+        && (!('proPlan' in request.resource.data) || request.resource.data.proPlan == '');
+
+      allow update: if isOwner(docId)
+        && request.resource.data.get('isPro', false) == resource.data.get('isPro', false)
+        && request.resource.data.get('proPlan', '') == resource.data.get('proPlan', '');
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,7 +2,6 @@ package com.ivy.data.cloud
 
 import android.app.Activity
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -100,9 +99,6 @@ class CashPulseCloudAccountManager @Inject constructor(
             startCloudSubscriptionListener()
         }
     }
-
-    fun isDebugBuild(): Boolean =
-        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
     fun getPhoneNumber(): String = sharedPrefs.getString(KEY_PHONE_NUMBER, "") ?: ""
 
@@ -329,15 +325,9 @@ class CashPulseCloudAccountManager @Inject constructor(
         }
 
         val resolvedPlan = if (planId.isNotBlank()) planId else PLAN_LIFETIME
-        val sandboxAllowed = isDebugBuild()
 
         if (activity == null) {
-            if (sandboxAllowed) {
-                activateProInCloud(planId = resolvedPlan, isSandbox = true)
-                onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
-            } else {
-                onResult(false, "Unable to open Google Play checkout right now.")
-            }
+            onResult(false, "Unable to open Google Play checkout right now.")
             return
         }
 
@@ -359,8 +349,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                             activateProInCloud(
                                 planId = resolvedPlan,
                                 orderId = completedPurchase.orderId,
-                                purchaseToken = completedPurchase.purchaseToken,
-                                isSandbox = false
+                                purchaseToken = completedPurchase.purchaseToken
                             )
                             onResult(true, "Payment received via Google Play. Paid tier active!")
                         } else {
@@ -368,9 +357,6 @@ class CashPulseCloudAccountManager @Inject constructor(
                         }
                     } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
                         onResult(false, "Checkout cancelled.")
-                    } else if (sandboxAllowed) {
-                        activateProInCloud(planId = resolvedPlan, isSandbox = true)
-                        onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
                     } else {
                         onResult(false, "Unable to complete Google Play payment right now. Please try again.")
                     }
@@ -386,12 +372,7 @@ class CashPulseCloudAccountManager @Inject constructor(
             client.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                        if (sandboxAllowed) {
-                            activateProInCloud(planId = resolvedPlan, isSandbox = true)
-                            onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
-                        } else {
-                            onResult(false, "Google Play Billing is unavailable. Please try again.")
-                        }
+                        onResult(false, "Google Play Billing is unavailable. Please try again.")
                         return
                     }
 
@@ -416,9 +397,6 @@ class CashPulseCloudAccountManager @Inject constructor(
                                 .setProductDetailsParamsList(listOf(productParams))
                                 .build()
                             client.launchBillingFlow(activity, flowParams)
-                        } else if (sandboxAllowed) {
-                            activateProInCloud(planId = resolvedPlan, isSandbox = true)
-                            onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
                         } else {
                             onResult(false, "Product unavailable on Google Play right now.")
                         }
@@ -426,21 +404,11 @@ class CashPulseCloudAccountManager @Inject constructor(
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    if (sandboxAllowed) {
-                        activateProInCloud(planId = resolvedPlan, isSandbox = true)
-                        onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
-                    } else {
-                        onResult(false, "Google Play connection interrupted. Please try again.")
-                    }
+                    onResult(false, "Google Play connection interrupted. Please try again.")
                 }
             })
         } catch (_: Exception) {
-            if (sandboxAllowed) {
-                activateProInCloud(planId = resolvedPlan, isSandbox = true)
-                onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
-            } else {
-                onResult(false, "Unable to complete Google Play payment right now. Please try again.")
-            }
+            onResult(false, "Unable to complete Google Play payment right now. Please try again.")
         }
     }
 
@@ -498,8 +466,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                             activateProInCloud(
                                 planId = PLAN_LIFETIME,
                                 orderId = owned.orderId,
-                                purchaseToken = owned.purchaseToken,
-                                isSandbox = false
+                                purchaseToken = owned.purchaseToken
                             )
                             onComplete(true)
                         } else {
@@ -710,8 +677,7 @@ class CashPulseCloudAccountManager @Inject constructor(
     private fun activateProInCloud(
         planId: String,
         orderId: String? = null,
-        purchaseToken: String? = null,
-        isSandbox: Boolean = false
+        purchaseToken: String? = null
     ) {
         val phone = getPhoneNumber()
         if (!isPhoneVerified() || phone.isBlank()) return
@@ -728,7 +694,6 @@ class CashPulseCloudAccountManager @Inject constructor(
                 "phoneNumber" to phone,
                 "isPro" to true,
                 "proPlan" to resolvedPlan,
-                "isSandbox" to isSandbox,
                 "updatedAt" to System.currentTimeMillis()
             )
             if (!orderId.isNullOrBlank()) {

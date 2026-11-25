@@ -6,6 +6,20 @@ import javax.inject.Inject
 
 class AttributionsProvider @Inject constructor() {
     private val attributionItems = persistentListOf(
+        AttributionItem.Divider(sectionName = "License & Copyright"),
+        AttributionItem.Attribution(
+            name = "CashPulse — Modified from Ivy Wallet (GNU GPLv3)",
+            link = "https://www.gnu.org/licenses/gpl-3.0.en.html"
+        ),
+        AttributionItem.Attribution(
+            name = "CashPulse Source Code (GNU GPLv3)",
+            link = "https://github.com/dev-rar/ivy-wallet"
+        ),
+        AttributionItem.Attribution(
+            name = "Original Upstream: Ivy Wallet Contributors",
+            link = "https://github.com/Ivy-Apps/ivy-wallet"
+        ),
+
         AttributionItem.Divider(sectionName = "Icons"),
         AttributionItem.Attribution(name = "iconsax", link = "https://iconsax.io"),
         AttributionItem.Attribution(

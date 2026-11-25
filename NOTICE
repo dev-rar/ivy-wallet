@@ -1,0 +1,23 @@
+CashPulse
+Copyright (C) 2026 CashPulse
+
+This software is a modified derivative of Ivy Wallet, originally licensed
+under the GNU General Public License v3.0 (GPLv3). See the LICENSE file for
+the full license text.
+
+Summary of Modifications (2026):
+- Rebranded application identity, package ID (com.cashpulse.wallet), UI themes,
+  and visual brand assets to CashPulse.
+- Introduced Free and Paid ($100 one-time) membership tiers with Google Play
+  Billing support and optional mobile number verification.
+- Added automated daily end-of-day and manual cloud backup / restore support
+  plus enhanced financial reporting.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+License v3.0 in LICENSE for more details.
+
+Trademark Notice:
+The "CashPulse" name, logo, and brand graphics are proprietary trademarks and
+brand assets of CashPulse and are not granted under the GPLv3 code license.

@@ -21,3 +21,16 @@
 # R8 full mode strips generic signatures from return types if not kept.
 -if interface * { @retrofit2.http.* public *** *(...); }
 -keep,allowoptimization,allowshrinking,allowobfuscation class <3>
+
+
+# CashPulse cloud metadata & JSON backup serialization
+-keep class com.ivy.data.cloud.CloudBackupMetadata { *; }
+-keepclassmembers class com.ivy.data.backup.** {
+    *;
+}
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.SerializationKt
+-keep,includedescriptorclasses class com.ivy.data.backup.**$$serializer { *; }
+-keepclassmembers class com.ivy.data.backup.**$Companion {
+    kotlinx.serialization.KSerializer serializer(...);
+}
