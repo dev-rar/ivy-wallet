@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -59,13 +60,27 @@ class SubscriptionViewModel @Inject constructor(
     @Composable
     override fun uiState(): SubscriptionState {
         LaunchedEffect(Unit) {
+            cloudAccountManager.refreshSubscriptionFromCloud()
+            cloudAccountManager.restoreGooglePlayPurchases { restored ->
+                if (restored) {
+                    viewModelScope.launch {
+                        refreshState()
+                        redirectPaidUser()
+                    }
+                }
+            }
             refreshState()
         }
+        val liveIsPro by cloudAccountManager.isProFlow.collectAsState()
+        val liveProPlan by cloudAccountManager.proPlanFlow.collectAsState()
+        val verified = cloudAccountManager.isPhoneVerified()
+        val effectivePaid = liveIsPro && verified
+
         return SubscriptionState(
             phoneNumber = phoneNumber,
-            isPhoneVerified = isPhoneVerified,
-            isPro = isPro,
-            proPlan = proPlan,
+            isPhoneVerified = verified,
+            isPro = effectivePaid,
+            proPlan = if (effectivePaid) liveProPlan else "",
             lastCloudSync = lastCloudSync,
             bankAutoTrackEnabled = bankAutoTrackEnabled,
             statusMessage = statusMessage,
@@ -179,6 +194,10 @@ class SubscriptionViewModel @Inject constructor(
     }
 
     private fun selectPlan(activity: Activity?) {
+        if (!cloudAccountManager.isPhoneVerified()) {
+            statusMessage = "Please verify your mobile number above first to unlock the Paid tier."
+            return
+        }
         if (cloudAccountManager.isPro()) {
             redirectPaidUser()
             return

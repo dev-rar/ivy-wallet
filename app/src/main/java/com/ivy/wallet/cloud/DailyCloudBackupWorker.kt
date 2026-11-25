@@ -16,7 +16,8 @@ class DailyCloudBackupWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        if (cloudAccountManager.isPro() && cloudAccountManager.isPhoneVerified()) {
+        val isPaidInCloud = cloudAccountManager.refreshSubscriptionFromCloud()
+        if (isPaidInCloud && cloudAccountManager.isPhoneVerified()) {
             cloudAccountManager.syncToFirebase()
         }
         return Result.success()

@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -175,6 +176,7 @@ class ReportViewModel @Inject constructor(
         LaunchedEffect(Unit) {
             start()
         }
+        val liveIsPro by cloudAccountManager.isProFlow.collectAsState()
 
         return ReportScreenState(
             categories = categories,
@@ -202,7 +204,7 @@ class ReportViewModel @Inject constructor(
             allTags = allTags,
             showAccountColorsInTransactions = getShouldShowAccountSpecificColorInTransactions(),
             yearlyReportState = yearlyReportState,
-            isPro = isPro,
+            isPro = liveIsPro && cloudAccountManager.isPhoneVerified(),
             proStatusMessage = proStatusMessage
         )
     }
@@ -273,7 +275,7 @@ class ReportViewModel @Inject constructor(
 
     private fun start() {
         viewModelScope.launch(Dispatchers.IO) {
-            isPro = cloudAccountManager.isPro()
+            isPro = cloudAccountManager.refreshSubscriptionFromCloud()
             baseCurrency = baseCurrencyAct(Unit)
             accounts = accountsAct(Unit)
             categories =

@@ -2,13 +2,16 @@ package com.ivy.data.cloud
 
 import android.app.Activity
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
+import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryPurchasesParams
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -16,11 +19,15 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.ivy.base.legacy.SharedPrefs
 import com.ivy.data.backup.BackupDataUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -57,6 +64,15 @@ class CashPulseCloudAccountManager @Inject constructor(
     @Volatile
     var detectedCloudBackup: CloudBackupMetadata? = null
 
+    private val _isProFlow = MutableStateFlow(false)
+    val isProFlow: StateFlow<Boolean> = _isProFlow.asStateFlow()
+
+    private val _proPlanFlow = MutableStateFlow("")
+    val proPlanFlow: StateFlow<String> = _proPlanFlow.asStateFlow()
+
+    private var subscriptionListener: ListenerRegistration? = null
+    private var listenedDocId: String? = null
+
     companion object {
         const val KEY_PHONE_NUMBER = "cashpulse_phone_number"
         const val KEY_PHONE_VERIFIED = "cashpulse_phone_verified"
@@ -76,13 +92,25 @@ class CashPulseCloudAccountManager @Inject constructor(
         private const val DATE_DISPLAY_PATTERN = "MMM dd, yyyy 'at' hh:mm a"
     }
 
+    init {
+        // Subscription state lives strictly in the cloud; clear any legacy local flags.
+        sharedPrefs.putBoolean(KEY_IS_PRO, false)
+        sharedPrefs.putString(KEY_PRO_PLAN, "")
+        if (isPhoneVerified()) {
+            startCloudSubscriptionListener()
+        }
+    }
+
+    fun isDebugBuild(): Boolean =
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
     fun getPhoneNumber(): String = sharedPrefs.getString(KEY_PHONE_NUMBER, "") ?: ""
 
     fun isPhoneVerified(): Boolean = sharedPrefs.getBoolean(KEY_PHONE_VERIFIED, false)
 
-    fun isPro(): Boolean = sharedPrefs.getBoolean(KEY_IS_PRO, false)
+    fun isPro(): Boolean = isPhoneVerified() && _isProFlow.value
 
-    fun getProPlan(): String = sharedPrefs.getString(KEY_PRO_PLAN, "") ?: ""
+    fun getProPlan(): String = if (isPro()) _proPlanFlow.value else ""
 
     fun getLastSyncTime(): String =
         sharedPrefs.getString(KEY_LAST_SYNC_TIME, "Never") ?: "Never"
@@ -96,6 +124,81 @@ class CashPulseCloudAccountManager @Inject constructor(
     fun normalizePhoneNumber(rawPhone: String): String {
         val cleaned = rawPhone.trim().replace(Regex("[^+0-9]"), "")
         return if (cleaned.startsWith("+")) cleaned else "+$cleaned"
+    }
+
+    @Synchronized
+    fun startCloudSubscriptionListener() {
+        val phone = getPhoneNumber()
+        if (!isPhoneVerified() || phone.isBlank()) {
+            subscriptionListener?.remove()
+            subscriptionListener = null
+            listenedDocId = null
+            _isProFlow.value = false
+            _proPlanFlow.value = ""
+            return
+        }
+
+        val docId = sanitizePhoneKey(phone)
+        if (subscriptionListener != null && listenedDocId == docId) {
+            return
+        }
+
+        subscriptionListener?.remove()
+        listenedDocId = docId
+
+        try {
+            subscriptionListener = FirebaseFirestore.getInstance()
+                .collection(COLLECTION_USERS)
+                .document(docId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null || snapshot == null) return@addSnapshotListener
+                    val remoteIsPro = snapshot.exists() && snapshot.getBoolean("isPro") == true
+                    val remotePlan = if (remoteIsPro) {
+                        snapshot.getString("proPlan").orEmpty().ifBlank { PLAN_LIFETIME }
+                    } else {
+                        ""
+                    }
+                    _isProFlow.value = remoteIsPro
+                    _proPlanFlow.value = remotePlan
+                }
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun refreshSubscriptionFromCloud(): Boolean = withContext(Dispatchers.IO) {
+        val phone = getPhoneNumber()
+        if (!isPhoneVerified() || phone.isBlank()) {
+            _isProFlow.value = false
+            _proPlanFlow.value = ""
+            return@withContext false
+        }
+
+        startCloudSubscriptionListener()
+        val docId = sanitizePhoneKey(phone)
+        val snapshot = try {
+            withTimeoutOrNull(FIRESTORE_TIMEOUT_MS) {
+                FirebaseFirestore.getInstance()
+                    .collection(COLLECTION_USERS)
+                    .document(docId)
+                    .get()
+                    .awaitResult()
+            }
+        } catch (_: Exception) {
+            null
+        }
+
+        if (snapshot != null) {
+            val remoteIsPro = snapshot.exists() && snapshot.getBoolean("isPro") == true
+            val remotePlan = if (remoteIsPro) {
+                snapshot.getString("proPlan").orEmpty().ifBlank { PLAN_LIFETIME }
+            } else {
+                ""
+            }
+            _isProFlow.value = remoteIsPro
+            _proPlanFlow.value = remotePlan
+        }
+
+        isPro()
     }
 
     fun sendOtp(
@@ -125,10 +228,9 @@ class CashPulseCloudAccountManager @Inject constructor(
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                     auth.signInWithCredential(credential)
                         .addOnSuccessListener { result ->
-                            saveVerifiedPhone(
-                                phone = normalized,
-                                uid = result.user?.uid ?: sanitizePhoneKey(normalized)
-                            )
+                            val uid = result.user?.uid ?: sanitizePhoneKey(normalized)
+                            saveVerifiedPhone(phone = normalized, uid = uid)
+                            pushUserMetadataToFirestore(normalized, uid)
                             onVerified(normalized)
                         }
                         .addOnFailureListener {
@@ -162,7 +264,7 @@ class CashPulseCloudAccountManager @Inject constructor(
                 .setCallbacks(callbacks)
                 .build()
             PhoneAuthProvider.verifyPhoneNumber(options)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             onCodeSent(
                 LOCAL_OTP_SESSION,
                 "Verification session ready for $normalized. Enter the 6-digit code to continue."
@@ -197,6 +299,7 @@ class CashPulseCloudAccountManager @Inject constructor(
 
         saveVerifiedPhone(normalized, uid)
         pushUserMetadataToFirestore(normalized, uid)
+        refreshSubscriptionFromCloud()
         Result.success("Mobile number $normalized verified.")
     }
 
@@ -205,6 +308,11 @@ class CashPulseCloudAccountManager @Inject constructor(
             FirebaseAuth.getInstance().signOut()
         } catch (_: Exception) {
         }
+        subscriptionListener?.remove()
+        subscriptionListener = null
+        listenedDocId = null
+        _isProFlow.value = false
+        _proPlanFlow.value = ""
         detectedCloudBackup = null
         sharedPrefs.putBoolean(KEY_PHONE_VERIFIED, false)
         sharedPrefs.putString(KEY_FIREBASE_UID, "")
@@ -215,10 +323,21 @@ class CashPulseCloudAccountManager @Inject constructor(
         planId: String,
         onResult: (Boolean, String) -> Unit
     ) {
-        val label = planDisplayName(planId)
+        if (!isPhoneVerified() || getPhoneNumber().isBlank()) {
+            onResult(false, "Please verify your mobile number first to link your Paid tier.")
+            return
+        }
+
+        val resolvedPlan = if (planId.isNotBlank()) planId else PLAN_LIFETIME
+        val sandboxAllowed = isDebugBuild()
+
         if (activity == null) {
-            activateProLocally(planId)
-            onResult(true, "CashPulse Pro ($label) activated!")
+            if (sandboxAllowed) {
+                activateProInCloud(planId = resolvedPlan, isSandbox = true)
+                onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
+            } else {
+                onResult(false, "Unable to open Google Play checkout right now.")
+            }
             return
         }
 
@@ -227,24 +346,33 @@ class CashPulseCloudAccountManager @Inject constructor(
             val client = BillingClient.newBuilder(context)
                 .setListener { billingResult, purchases ->
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-                        for (purchase in purchases) {
-                            if (!purchase.isAcknowledged) {
+                        val completedPurchase = purchases.firstOrNull {
+                            it.purchaseState == Purchase.PurchaseState.PURCHASED
+                        }
+                        if (completedPurchase != null) {
+                            if (!completedPurchase.isAcknowledged) {
                                 val ackParams = AcknowledgePurchaseParams.newBuilder()
-                                    .setPurchaseToken(purchase.purchaseToken)
+                                    .setPurchaseToken(completedPurchase.purchaseToken)
                                     .build()
                                 activeClient?.acknowledgePurchase(ackParams) { }
                             }
+                            activateProInCloud(
+                                planId = resolvedPlan,
+                                orderId = completedPurchase.orderId,
+                                purchaseToken = completedPurchase.purchaseToken,
+                                isSandbox = false
+                            )
+                            onResult(true, "Payment received via Google Play. Paid tier active!")
+                        } else {
+                            onResult(false, "Payment is pending confirmation from Google Play.")
                         }
-                        activateProLocally(planId)
-                        onResult(true, "Payment received via Google Play (Google Pay / Card). Pro active!")
                     } else if (billingResult.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
                         onResult(false, "Checkout cancelled.")
+                    } else if (sandboxAllowed) {
+                        activateProInCloud(planId = resolvedPlan, isSandbox = true)
+                        onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
                     } else {
-                        activateProLocally(planId)
-                        onResult(
-                            true,
-                            "CashPulse Pro ($label) activated!"
-                        )
+                        onResult(false, "Unable to complete Google Play payment right now. Please try again.")
                     }
                 }
                 .enablePendingPurchases(
@@ -258,26 +386,21 @@ class CashPulseCloudAccountManager @Inject constructor(
             client.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                        activateProLocally(planId)
-                        onResult(
-                            true,
-                            "CashPulse Pro ($label) activated!"
-                        )
+                        if (sandboxAllowed) {
+                            activateProInCloud(planId = resolvedPlan, isSandbox = true)
+                            onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
+                        } else {
+                            onResult(false, "Google Play Billing is unavailable. Please try again.")
+                        }
                         return
-                    }
-
-                    val productType = if (planId == PLAN_LIFETIME) {
-                        BillingClient.ProductType.INAPP
-                    } else {
-                        BillingClient.ProductType.SUBS
                     }
 
                     val params = QueryProductDetailsParams.newBuilder()
                         .setProductList(
                             listOf(
                                 QueryProductDetailsParams.Product.newBuilder()
-                                    .setProductId(planId)
-                                    .setProductType(productType)
+                                    .setProductId(resolvedPlan)
+                                    .setProductType(BillingClient.ProductType.INAPP)
                                     .build()
                             )
                         )
@@ -286,37 +409,112 @@ class CashPulseCloudAccountManager @Inject constructor(
                     client.queryProductDetailsAsync(params) { queryResult, detailsList ->
                         val productDetails = detailsList.firstOrNull()
                         if (queryResult.responseCode == BillingClient.BillingResponseCode.OK && productDetails != null) {
-                            val productParamsBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
+                            val productParams = BillingFlowParams.ProductDetailsParams.newBuilder()
                                 .setProductDetails(productDetails)
-                            if (productType == BillingClient.ProductType.SUBS) {
-                                val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
-                                if (offerToken != null) {
-                                    productParamsBuilder.setOfferToken(offerToken)
-                                }
-                            }
+                                .build()
                             val flowParams = BillingFlowParams.newBuilder()
-                                .setProductDetailsParamsList(listOf(productParamsBuilder.build()))
+                                .setProductDetailsParamsList(listOf(productParams))
                                 .build()
                             client.launchBillingFlow(activity, flowParams)
+                        } else if (sandboxAllowed) {
+                            activateProInCloud(planId = resolvedPlan, isSandbox = true)
+                            onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
                         } else {
-                            // SKU not yet configured in Play Console: activate sandbox Pro for testing
-                            activateProLocally(planId)
-                            onResult(
-                                true,
-                                "CashPulse Pro ($label) activated!"
-                            )
+                            onResult(false, "Product unavailable on Google Play right now.")
                         }
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    activateProLocally(planId)
-                    onResult(true, "Activated CashPulse Pro ($label) offline.")
+                    if (sandboxAllowed) {
+                        activateProInCloud(planId = resolvedPlan, isSandbox = true)
+                        onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
+                    } else {
+                        onResult(false, "Google Play connection interrupted. Please try again.")
+                    }
                 }
             })
         } catch (_: Exception) {
-            activateProLocally(planId)
-            onResult(true, "Activated CashPulse Pro ($label) offline.")
+            if (sandboxAllowed) {
+                activateProInCloud(planId = resolvedPlan, isSandbox = true)
+                onResult(true, "CashPulse Paid activated in debug sandbox and saved to cloud!")
+            } else {
+                onResult(false, "Unable to complete Google Play payment right now. Please try again.")
+            }
+        }
+    }
+
+    fun restoreGooglePlayPurchases(onComplete: (Boolean) -> Unit = {}) {
+        if (!isPhoneVerified() || getPhoneNumber().isBlank()) {
+            onComplete(false)
+            return
+        }
+
+        try {
+            var activeClient: BillingClient? = null
+            val client = BillingClient.newBuilder(context)
+                .setListener { _, _ -> }
+                .enablePendingPurchases(
+                    PendingPurchasesParams.newBuilder()
+                        .enableOneTimeProducts()
+                        .build()
+                )
+                .build()
+            activeClient = client
+
+            client.startConnection(object : BillingClientStateListener {
+                override fun onBillingSetupFinished(billingResult: BillingResult) {
+                    if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                        client.endConnection()
+                        onComplete(false)
+                        return
+                    }
+
+                    val params = QueryPurchasesParams.newBuilder()
+                        .setProductType(BillingClient.ProductType.INAPP)
+                        .build()
+
+                    client.queryPurchasesAsync(params) { queryResult, purchases ->
+                        val owned = if (queryResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                            purchases.firstOrNull { purchase ->
+                                purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                                    purchase.products.contains(PLAN_LIFETIME)
+                            }
+                        } else {
+                            null
+                        }
+
+                        if (owned != null) {
+                            if (!owned.isAcknowledged) {
+                                val ackParams = AcknowledgePurchaseParams.newBuilder()
+                                    .setPurchaseToken(owned.purchaseToken)
+                                    .build()
+                                activeClient?.acknowledgePurchase(ackParams) {
+                                    client.endConnection()
+                                }
+                            } else {
+                                client.endConnection()
+                            }
+                            activateProInCloud(
+                                planId = PLAN_LIFETIME,
+                                orderId = owned.orderId,
+                                purchaseToken = owned.purchaseToken,
+                                isSandbox = false
+                            )
+                            onComplete(true)
+                        } else {
+                            client.endConnection()
+                            onComplete(false)
+                        }
+                    }
+                }
+
+                override fun onBillingServiceDisconnected() {
+                    onComplete(false)
+                }
+            })
+        } catch (_: Exception) {
+            onComplete(false)
         }
     }
 
@@ -324,8 +522,8 @@ class CashPulseCloudAccountManager @Inject constructor(
         if (!isPhoneVerified()) {
             return@withContext Result.failure(IllegalStateException("Verify your mobile number first."))
         }
-        if (!isPro()) {
-            return@withContext Result.failure(IllegalStateException("Cloud Sync is included with CashPulse Pro."))
+        if (!refreshSubscriptionFromCloud()) {
+            return@withContext Result.failure(IllegalStateException("Cloud Sync is included with CashPulse Paid."))
         }
 
         val phone = getPhoneNumber()
@@ -341,7 +539,7 @@ class CashPulseCloudAccountManager @Inject constructor(
             val payload = mapOf(
                 "phoneNumber" to phone,
                 "isPro" to true,
-                "proPlan" to getProPlan(),
+                "proPlan" to getProPlan().ifBlank { PLAN_LIFETIME },
                 "updatedAt" to System.currentTimeMillis(),
                 "lastSyncFormatted" to formattedTime,
                 "backupJson" to jsonBackup
@@ -385,10 +583,15 @@ class CashPulseCloudAccountManager @Inject constructor(
             null
         }
 
-        val remoteIsPro = remoteData?.getBoolean("isPro") == true
-        if (remoteIsPro) {
-            sharedPrefs.putBoolean(KEY_IS_PRO, true)
-            sharedPrefs.putString(KEY_PRO_PLAN, PLAN_LIFETIME)
+        if (remoteData != null) {
+            val remoteIsPro = remoteData.exists() && remoteData.getBoolean("isPro") == true
+            val remotePlan = if (remoteIsPro) {
+                remoteData.getString("proPlan").orEmpty().ifBlank { PLAN_LIFETIME }
+            } else {
+                ""
+            }
+            _isProFlow.value = remoteIsPro
+            _proPlanFlow.value = remotePlan
         }
 
         val remoteBackupJson = remoteData?.getString("backupJson")
@@ -442,11 +645,15 @@ class CashPulseCloudAccountManager @Inject constructor(
         }
 
         val remoteBackupJson = remoteData?.getString("backupJson")
-        val remoteIsPro = remoteData?.getBoolean("isPro") == true
-        if (remoteIsPro && !isPro()) {
-            val remotePlan = remoteData?.getString("proPlan") ?: PLAN_MONTHLY
-            sharedPrefs.putBoolean(KEY_IS_PRO, true)
-            sharedPrefs.putString(KEY_PRO_PLAN, remotePlan)
+        if (remoteData != null) {
+            val remoteIsPro = remoteData.exists() && remoteData.getBoolean("isPro") == true
+            val remotePlan = if (remoteIsPro) {
+                remoteData.getString("proPlan").orEmpty().ifBlank { PLAN_LIFETIME }
+            } else {
+                ""
+            }
+            _isProFlow.value = remoteIsPro
+            _proPlanFlow.value = remotePlan
         }
 
         val jsonToRestore = when {
@@ -500,16 +707,41 @@ class CashPulseCloudAccountManager @Inject constructor(
         Result.success("Cloud backup reset. You can now start fresh.")
     }
 
-    private fun activateProLocally(planId: String) {
-        val resolvedPlan = if (planId.isNotBlank()) planId else PLAN_LIFETIME
-        sharedPrefs.putBoolean(KEY_IS_PRO, true)
-        sharedPrefs.putString(KEY_PRO_PLAN, resolvedPlan)
+    private fun activateProInCloud(
+        planId: String,
+        orderId: String? = null,
+        purchaseToken: String? = null,
+        isSandbox: Boolean = false
+    ) {
         val phone = getPhoneNumber()
-        if (phone.isNotBlank()) {
-            pushUserMetadataToFirestore(
-                phone = phone,
-                uid = sharedPrefs.getString(KEY_FIREBASE_UID, sanitizePhoneKey(phone)) ?: sanitizePhoneKey(phone)
+        if (!isPhoneVerified() || phone.isBlank()) return
+
+        val resolvedPlan = if (planId.isNotBlank()) planId else PLAN_LIFETIME
+        _isProFlow.value = true
+        _proPlanFlow.value = resolvedPlan
+
+        try {
+            val docId = sanitizePhoneKey(phone)
+            val uid = sharedPrefs.getString(KEY_FIREBASE_UID, docId) ?: docId
+            val payload = mutableMapOf<String, Any>(
+                "uid" to uid,
+                "phoneNumber" to phone,
+                "isPro" to true,
+                "proPlan" to resolvedPlan,
+                "isSandbox" to isSandbox,
+                "updatedAt" to System.currentTimeMillis()
             )
+            if (!orderId.isNullOrBlank()) {
+                payload["orderId"] = orderId
+            }
+            if (!purchaseToken.isNullOrBlank()) {
+                payload["purchaseToken"] = purchaseToken
+            }
+            FirebaseFirestore.getInstance()
+                .collection(COLLECTION_USERS)
+                .document(docId)
+                .set(payload, SetOptions.merge())
+        } catch (_: Exception) {
         }
     }
 
@@ -517,16 +749,16 @@ class CashPulseCloudAccountManager @Inject constructor(
         sharedPrefs.putString(KEY_PHONE_NUMBER, phone)
         sharedPrefs.putBoolean(KEY_PHONE_VERIFIED, true)
         sharedPrefs.putString(KEY_FIREBASE_UID, uid)
+        startCloudSubscriptionListener()
     }
 
     private fun pushUserMetadataToFirestore(phone: String, uid: String) {
         try {
             val docId = sanitizePhoneKey(phone)
+            // Never overwrite isPro/proPlan here so existing cloud Paid status (or manual admin grant) persists.
             val data = mapOf(
                 "uid" to uid,
                 "phoneNumber" to phone,
-                "isPro" to isPro(),
-                "proPlan" to getProPlan(),
                 "updatedAt" to System.currentTimeMillis()
             )
             FirebaseFirestore.getInstance()
@@ -549,9 +781,6 @@ class CashPulseCloudAccountManager @Inject constructor(
         return SimpleDateFormat(DATE_DISPLAY_PATTERN, Locale.getDefault()).format(Date(millis))
     }
 
-    @Suppress("UnusedParameter")
-    private fun planDisplayName(planId: String): String = "Paid"
-
     private suspend fun <T> Task<T>.awaitResult(): T? = suspendCancellableCoroutine { cont ->
         addOnSuccessListener { result ->
             if (cont.isActive) cont.resume(result)
@@ -570,4 +799,3 @@ class CashPulseCloudAccountManager @Inject constructor(
         }
     }
 }
-

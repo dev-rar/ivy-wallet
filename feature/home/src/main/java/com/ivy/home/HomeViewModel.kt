@@ -3,6 +3,7 @@ package com.ivy.home
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -145,6 +146,8 @@ class HomeViewModel @Inject constructor(
         LaunchedEffect(Unit) {
             start()
         }
+        val liveIsPro by cloudAccountManager.isProFlow.collectAsState()
+        val verified = cloudAccountManager.isPhoneVerified()
 
         return HomeState(
             theme = getTheme(),
@@ -162,8 +165,8 @@ class HomeViewModel @Inject constructor(
             expanded = getExpanded(),
             hideIncome = getHideIncome(),
             shouldShowAccountSpecificColorInTransactions = getShouldShowAccountSpecificColorInTransactions(),
-            isPro = isPro,
-            isPhoneVerified = isPhoneVerified,
+            isPro = liveIsPro && verified,
+            isPhoneVerified = verified,
             lastCloudSync = lastCloudSync,
             isBackingUp = isBackingUp,
             backupStatusMessage = backupStatusMessage
@@ -277,7 +280,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun manualCloudBackup() {
-        if (!cloudAccountManager.isPro()) {
+        val isPaidInCloud = cloudAccountManager.refreshSubscriptionFromCloud()
+        if (!isPaidInCloud) {
             backupStatusMessage = "Upgrade to Paid (\$100 one-time) to enable cloud backups."
             return
         }
@@ -310,6 +314,7 @@ class HomeViewModel @Inject constructor(
         val settings = settingsAct(Unit)
         val hideBalance = shouldHideBalanceAct(Unit)
         val hideIncome = shouldHideIncomeAct(Unit)
+        cloudAccountManager.refreshSubscriptionFromCloud()
 
         currentTheme = settings.theme
         name = settings.name

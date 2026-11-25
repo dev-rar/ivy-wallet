@@ -9,6 +9,8 @@ import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.viewModelScope
@@ -81,6 +83,9 @@ class SettingsViewModel @Inject constructor(
         LaunchedEffect(Unit) {
             onStart()
         }
+        val liveIsPro by cloudAccountManager.isProFlow.collectAsState()
+        val liveProPlan by cloudAccountManager.proPlanFlow.collectAsState()
+        val verified = cloudAccountManager.isPhoneVerified()
 
         return SettingsState(
             currencyCode = getCurrencyCode(),
@@ -94,9 +99,9 @@ class SettingsViewModel @Inject constructor(
             progressState = getProgressState(),
             hideIncome = getHideIncome(),
             languageOptionVisible = isLanguageOptionVisible(),
-            isPhoneVerified = isPhoneVerified.value,
-            isPro = isPro.value,
-            proPlan = proPlan.value
+            isPhoneVerified = verified,
+            isPro = liveIsPro && verified,
+            proPlan = if (liveIsPro && verified) liveProPlan else ""
         )
     }
 
@@ -110,6 +115,7 @@ class SettingsViewModel @Inject constructor(
         initializeHideIncome()
         initializeTransfersAsIncomeExpense()
         initializeStartDateOfMonth()
+        cloudAccountManager.refreshSubscriptionFromCloud()
         refreshCloudState()
     }
 

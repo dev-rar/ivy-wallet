@@ -8,6 +8,7 @@ import com.ivy.base.legacy.SharedPrefs
 import com.ivy.base.legacy.Theme
 import com.ivy.base.legacy.stringRes
 import com.ivy.base.model.TransactionType
+import com.ivy.data.cloud.CashPulseCloudAccountManager
 import com.ivy.data.db.dao.read.SettingsDao
 import com.ivy.data.repository.LegalRepository
 import com.ivy.frp.test.TestIdlingResource
@@ -45,6 +46,7 @@ class RootViewModel @Inject constructor(
     private val migrationsManager: MigrationsManager,
     private val legalRepo: LegalRepository,
     private val dailyCloudBackupScheduler: DailyCloudBackupScheduler,
+    private val cloudAccountManager: CashPulseCloudAccountManager,
 ) : ViewModel() {
 
     companion object {
@@ -126,6 +128,9 @@ class RootViewModel @Inject constructor(
         viewModelScope.launch {
             migrationsManager.executeMigrations()
             dailyCloudBackupScheduler.scheduleEndOfDayBackup()
+            cloudAccountManager.startCloudSubscriptionListener()
+            cloudAccountManager.refreshSubscriptionFromCloud()
+            cloudAccountManager.restoreGooglePlayPurchases()
         }
     }
 
